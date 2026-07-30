@@ -38,14 +38,13 @@ client.on('messageCreate', async (message) => {
                 'Sunucumuzda yaşadığınız sorunlar veya talepleriniz için aşağıdaki butonlara tıklayarak **Destek Talebi** oluşturabilirsiniz.\n\n' +
                 '📌 **Kurallar & Bilgilendirme:**\n' +
                 '• Gereksiz veya troll amaçlı talep açmak yasaktır.\n' +
-                '• Lütfen talebinizi oluşturduktan sonra sorununuzu detaylıca yazıp yetkililerin dönüş yapmasını bekleyin.\n' +
-                '• İşleminiz bittiğinde **"Talebi Kapat"** butonuna basarak kanalı kapatabilirsiniz.\n\n' +
-                '👇 **Yardım almak istediğiniz kategoriye aşağıdaki butonlardan tıklayın:**'
+                '• Lütfen talebinizi oluşturduktan sonra sorununuzu detaylıca yazıp yetkililerin dönüş yapmasını bekleyin.\n\n' +
+                '**Yardım almak istediğiniz kategoriye aşağıdaki butonlardan tıklayın:**'
             )
-            .setColor('#5865F2')
+            .setColor('#38B6FF')
             .setFooter({ text: 'CraftRiva Destek Sistemi', iconURL: message.guild.iconURL() });
 
-        // İlk Sıra Butonlar (5 Adet)
+        // İlk Sıra Butonlar (Gri Stil)
         const row1 = new ActionRowBuilder().addComponents(
             new ButtonBuilder()
                 .setCustomId('ticket_ceza-itiraz')
@@ -56,25 +55,25 @@ client.on('messageCreate', async (message) => {
                 .setCustomId('ticket_hile-bildirim')
                 .setLabel('Hile Bildirimi')
                 .setEmoji('⚠️')
-                .setStyle(ButtonStyle.Danger),
+                .setStyle(ButtonStyle.Secondary),
             new ButtonBuilder()
                 .setCustomId('ticket_genel-destek')
                 .setLabel('Genel Destek')
                 .setEmoji('📩')
-                .setStyle(ButtonStyle.Primary),
+                .setStyle(ButtonStyle.Secondary),
             new ButtonBuilder()
                 .setCustomId('ticket_odeme-sorunlari')
                 .setLabel('Ödeme Sorunları')
                 .setEmoji('💳')
-                .setStyle(ButtonStyle.Success),
+                .setStyle(ButtonStyle.Secondary),
             new ButtonBuilder()
                 .setCustomId('ticket_yetkili-sikayet')
                 .setLabel('Yetkili Şikayeti')
                 .setEmoji('🚨')
-                .setStyle(ButtonStyle.Danger)
+                .setStyle(ButtonStyle.Secondary)
         );
 
-        // İkinci Sıra Butonlar (2 Adet)
+        // İkinci Sıra Butonlar (Gri Stil)
         const row2 = new ActionRowBuilder().addComponents(
             new ButtonBuilder()
                 .setCustomId('ticket_bug-bildirimi')
@@ -85,7 +84,7 @@ client.on('messageCreate', async (message) => {
                 .setCustomId('ticket_klan-destegi')
                 .setLabel('Klan Desteği')
                 .setEmoji('📝')
-                .setStyle(ButtonStyle.Primary)
+                .setStyle(ButtonStyle.Secondary)
         );
 
         await message.channel.send({ embeds: [embed], components: [row1, row2] });
@@ -140,7 +139,7 @@ client.on('interactionCreate', async (interaction) => {
         const ticketEmbed = new EmbedBuilder()
             .setTitle(`${secilenIsim} Talebi`)
             .setDescription(`Merhaba <@${interaction.user.id}>, talebiniz **${secilenIsim}** kategorisinde oluşturuldu.\n\nLütfen konunuzla ilgili tüm detayları ve varsa kanıtlarınızı (ekran görüntüsü/video) buraya yazın. Yetkili ekibimiz en kısa sürede ilgilenecektir.`)
-            .setColor('#57F287');
+            .setColor('#38B6FF');
 
         const closeRow = new ActionRowBuilder().addComponents(
             new ButtonBuilder()
