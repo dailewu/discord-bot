@@ -1,4 +1,4 @@
-const { Client, GatewayIntentBits, ActionRowBuilder, StringSelectMenuBuilder, StringSelectMenuOptionBuilder, ButtonBuilder, ButtonStyle, ChannelType, PermissionFlagsBits, EmbedBuilder } = require('discord.js');
+const { Client, GatewayIntentBits, ActionRowBuilder, ButtonBuilder, ButtonStyle, ChannelType, PermissionFlagsBits, EmbedBuilder } = require('discord.js');
 
 const client = new Client({
     intents: [
@@ -24,69 +24,71 @@ client.on('messageCreate', async (message) => {
         const embed = new EmbedBuilder()
             .setTitle('🛡️ CraftRiva Destek & İletişim Merkezi')
             .setDescription(
-                'Sunucumuzda yaşadığınız sorunlar veya talepleriniz için aşağıdaki menüden ilgili konuyu seçerek **Destek Talebi** oluşturabilirsiniz.\n\n' +
+                'Sunucumuzda yaşadığınız sorunlar veya talepleriniz için aşağıdaki butonlara tıklayarak **Destek Talebi** oluşturabilirsiniz.\n\n' +
                 '📌 **Kurallar & Bilgilendirme:**\n' +
                 '• Gereksiz veya troll amaçlı talep açmak yasaktır.\n' +
                 '• Lütfen talebinizi oluşturduktan sonra sorununuzu detaylıca yazıp yetkililerin dönüş yapmasını bekleyin.\n' +
                 '• İşleminiz bittiğinde **"Talebi Kapat"** butonuna basarak kanalı kapatabilirsiniz.\n\n' +
-                '👇 **Yardım almak istediğiniz konuyu aşağıdan seçin:**'
+                '👇 **Yardım almak istediğiniz kategoriye aşağıdaki butonlardan tıklayın:**'
             )
-            .setColor('#2F3136')
+            .setColor('#5865F2')
             .setFooter({ text: 'CraftRiva Destek Sistemi', iconURL: message.guild.iconURL() });
 
-        const selectMenu = new StringSelectMenuBuilder()
-            .setCustomId('ticket_kategori_sec')
-            .setPlaceholder('Lütfen bir destek kategorisi seçin...')
-            .addOptions(
-                new StringSelectMenuOptionBuilder()
-                    .setLabel('Ceza İtirazı')
-                    .setDescription('Aldığınız cezalara (Mute/Ban) itiraz etmek için.')
-                    .setValue('ceza-itiraz')
-                    .setEmoji('⚖️'),
-                new StringSelectMenuOptionBuilder()
-                    .setLabel('Hile Bildirimi')
-                    .setDescription('Hile kullanan oyuncuları bildirmek için.')
-                    .setValue('hile-bildirim')
-                    .setEmoji('⚠️'),
-                new StringSelectMenuOptionBuilder()
-                    .setLabel('Genel Destek')
-                    .setDescription('Sunucu içi genel soru ve yardım talepleriniz.')
-                    .setValue('genel-destek')
-                    .setEmoji('📩'),
-                new StringSelectMenuOptionBuilder()
-                    .setLabel('Ödeme Sorunları')
-                    .setDescription('VIP, kredi ve mağaza alım sorunları.')
-                    .setValue('odeme-sorunlari')
-                    .setEmoji('💳'),
-                new StringSelectMenuOptionBuilder()
-                    .setLabel('Yetkili Şikayeti')
-                    .setDescription('Kural ihlali yaptığını düşündüğünüz yetkilileri bildirin.')
-                    .setValue('yetkili-sikayet')
-                    .setEmoji('🚨'),
-                new StringSelectMenuOptionBuilder()
-                    .setLabel('Hata-Bug Bildirimi')
-                    .setDescription('Oyun içi veya sunucu hatalarını bildirmek için.')
-                    .setValue('bug-bildirimi')
-                    .setEmoji('🛠️'),
-                new StringSelectMenuOptionBuilder()
-                    .setLabel('Klan Desteği')
-                    .setDescription('Klanınız ile ilgili talepler ve yardımlar.')
-                    .setValue('klan-destegi')
-                    .setEmoji('📝')
-            );
+        // İlk Sıra Butonlar (5 Adet)
+        const row1 = new ActionRowBuilder().addComponents(
+            new ButtonBuilder()
+                .setCustomId('ticket_ceza-itiraz')
+                .setLabel('Ceza İtirazı')
+                .setEmoji('⚖️')
+                .setStyle(ButtonStyle.Secondary),
+            new ButtonBuilder()
+                .setCustomId('ticket_hile-bildirim')
+                .setLabel('Hile Bildirimi')
+                .setEmoji('⚠️')
+                .setStyle(ButtonStyle.Danger),
+            new ButtonBuilder()
+                .setCustomId('ticket_genel-destek')
+                .setLabel('Genel Destek')
+                .setEmoji('📩')
+                .setStyle(ButtonStyle.Primary),
+            new ButtonBuilder()
+                .setCustomId('ticket_odeme-sorunlari')
+                .setLabel('Ödeme Sorunları')
+                .setEmoji('💳')
+                .setStyle(ButtonStyle.Success),
+            new ButtonBuilder()
+                .setCustomId('ticket_yetkili-sikayet')
+                .setLabel('Yetkili Şikayeti')
+                .setEmoji('🚨')
+                .setStyle(ButtonStyle.Danger)
+        );
 
-        const row = new ActionRowBuilder().addComponents(selectMenu);
+        // İkinci Sıra Butonlar (2 Adet)
+        const row2 = new ActionRowBuilder().addComponents(
+            new ButtonBuilder()
+                .setCustomId('ticket_bug-bildirimi')
+                .setLabel('Hata-Bug Bildirimi')
+                .setEmoji('🛠️')
+                .setStyle(ButtonStyle.Secondary),
+            new ButtonBuilder()
+                .setCustomId('ticket_klan-destegi')
+                .setLabel('Klan Desteği')
+                .setEmoji('📝')
+                .setStyle(ButtonStyle.Primary)
+        );
 
-        await message.channel.send({ embeds: [embed], components: [row] });
+        await message.channel.send({ embeds: [embed], components: [row1, row2] });
         await message.delete();
     }
 });
 
-// Menü ve Buton Etkileşimleri
+// Buton Etkileşimleri
 client.on('interactionCreate', async (interaction) => {
-    // Kategori Menüsü Seçildiğinde
-    if (interaction.isStringSelectMenu() && interaction.customId === 'ticket_kategori_sec') {
-        const secim = interaction.values[0];
+    if (!interaction.isButton()) return;
+
+    // Destek Talebi Açma
+    if (interaction.customId.startsWith('ticket_') && interaction.customId !== 'ticket_kapat') {
+        const secim = interaction.customId.replace('ticket_', '');
         const guild = interaction.guild;
         const channelName = `${secim}-${interaction.user.username}`;
 
@@ -96,7 +98,6 @@ client.on('interactionCreate', async (interaction) => {
             return interaction.reply({ content: `Zaten bu kategoride açık bir talebiniz bulunuyor: ${existingChannel}`, ephemeral: true });
         }
 
-        // Kategori isimlerini düzeltme
         const kategoriIsimleri = {
             'ceza-itiraz': 'Ceza İtirazı ⚖️',
             'hile-bildirim': 'Hile Bildirimi ⚠️',
@@ -143,7 +144,7 @@ client.on('interactionCreate', async (interaction) => {
     }
 
     // Kanal Kapatma Butonu
-    if (interaction.isButton() && interaction.customId === 'ticket_kapat') {
+    if (interaction.customId === 'ticket_kapat') {
         await interaction.reply('Bu destek talebi 5 saniye içinde kapatılıp silinecektir...');
         setTimeout(() => {
             interaction.channel.delete().catch(() => {});
