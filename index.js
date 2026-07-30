@@ -1,4 +1,4 @@
-const { Client, GatewayIntentBits, ActionRowBuilder, ButtonBuilder, ButtonStyle, ChannelType, PermissionFlagsBits, EmbedBuilder } = require('discord.js');
+const { Client, GatewayIntentBits, ActionRowBuilder, StringSelectMenuBuilder, StringSelectMenuOptionBuilder, ButtonBuilder, ButtonStyle, ChannelType, PermissionFlagsBits, EmbedBuilder } = require('discord.js');
 
 const client = new Client({
     intents: [
@@ -12,68 +12,122 @@ client.once('ready', () => {
     console.log(`Bot başarıyla giriş yaptı: ${client.user.tag}`);
 });
 
-// !destek-kur komutu ile destek panelini kanala atıyoruz
+// !destek-kur komutu
 client.on('messageCreate', async (message) => {
     if (message.author.bot) return;
 
     if (message.content === '!destek-kur') {
-        // Yetki kontrolü (Sadece yönetici kullanabilsin)
         if (!message.member.permissions.has(PermissionFlagsBits.Administrator)) {
             return message.reply('Bu komutu kullanmak için **Yönetici** yetkisine sahip olmalısın!');
         }
 
         const embed = new EmbedBuilder()
-            .setTitle('🎫 Destek Sistemi')
-            .setDescription('Bir sorun yaşıyorsanız veya yetkililerle görüşmek istiyorsanız aşağıdaki **"Destek Talebi Oluştur"** butonuna tıklayın.')
-            .setColor('#5865F2');
+            .setTitle('🛡️ CraftRiva Destek & İletişim Merkezi')
+            .setDescription(
+                'Sunucumuzda yaşadığınız sorunlar veya talepleriniz için aşağıdaki menüden ilgili konuyu seçerek **Destek Talebi** oluşturabilirsiniz.\n\n' +
+                '📌 **Kurallar & Bilgilendirme:**\n' +
+                '• Gereksiz veya troll amaçlı talep açmak yasaktır.\n' +
+                '• Lütfen talebinizi oluşturduktan sonra sorununuzu detaylıca yazıp yetkililerin dönüş yapmasını bekleyin.\n' +
+                '• İşleminiz bittiğinde **"Talebi Kapat"** butonuna basarak kanalı kapatabilirsiniz.\n\n' +
+                '👇 **Yardım almak istediğiniz konuyu aşağıdan seçin:**'
+            )
+            .setColor('#2F3136')
+            .setFooter({ text: 'CraftRiva Destek Sistemi', iconURL: message.guild.iconURL() });
 
-        const row = new ActionRowBuilder().addComponents(
-            new ButtonBuilder()
-                .setCustomId('ticket_olustur')
-                .setLabel('Destek Talebi Oluştur')
-                .setEmoji('🎫')
-                .setStyle(ButtonStyle.Primary)
-        );
+        const selectMenu = new StringSelectMenuBuilder()
+            .setCustomId('ticket_kategori_sec')
+            .setPlaceholder('Lütfen bir destek kategorisi seçin...')
+            .addOptions(
+                new StringSelectMenuOptionBuilder()
+                    .setLabel('Ceza İtirazı')
+                    .setDescription('Aldığınız cezalara (Mute/Ban) itiraz etmek için.')
+                    .setValue('ceza-itiraz')
+                    .setEmoji('⚖️'),
+                new StringSelectMenuOptionBuilder()
+                    .setLabel('Hile Bildirimi')
+                    .setDescription('Hile kullanan oyuncuları bildirmek için.')
+                    .setValue('hile-bildirim')
+                    .setEmoji('⚠️'),
+                new StringSelectMenuOptionBuilder()
+                    .setLabel('Genel Destek')
+                    .setDescription('Sunucu içi genel soru ve yardım talepleriniz.')
+                    .setValue('genel-destek')
+                    .setEmoji('📩'),
+                new StringSelectMenuOptionBuilder()
+                    .setLabel('Ödeme Sorunları')
+                    .setDescription('VIP, kredi ve mağaza alım sorunları.')
+                    .setValue('odeme-sorunlari')
+                    .setEmoji('💳'),
+                new StringSelectMenuOptionBuilder()
+                    .setLabel('Yetkili Şikayeti')
+                    .setDescription('Kural ihlali yaptığını düşündüğünüz yetkilileri bildirin.')
+                    .setValue('yetkili-sikayet')
+                    .setEmoji('🚨'),
+                new StringSelectMenuOptionBuilder()
+                    .setLabel('Hata-Bug Bildirimi')
+                    .setDescription('Oyun içi veya sunucu hatalarını bildirmek için.')
+                    .setValue('bug-bildirimi')
+                    .setEmoji('🛠️'),
+                new StringSelectMenuOptionBuilder()
+                    .setLabel('Klan Desteği')
+                    .setDescription('Klanınız ile ilgili talepler ve yardımlar.')
+                    .setValue('klan-destegi')
+                    .setEmoji('📝')
+            );
+
+        const row = new ActionRowBuilder().addComponents(selectMenu);
 
         await message.channel.send({ embeds: [embed], components: [row] });
-        await message.delete(); // Komut mesajını temizler
+        await message.delete();
     }
 });
 
-// Butonlara tıklama olayı
+// Menü ve Buton Etkileşimleri
 client.on('interactionCreate', async (interaction) => {
-    if (!interaction.isButton()) return;
-
-    // Destek Talebi Açma
-    if (interaction.customId === 'ticket_olustur') {
+    // Kategori Menüsü Seçildiğinde
+    if (interaction.isStringSelectMenu() && interaction.customId === 'ticket_kategori_sec') {
+        const secim = interaction.values[0];
         const guild = interaction.guild;
-        const channelName = `destek-${interaction.user.username}`;
+        const channelName = `${secim}-${interaction.user.username}`;
 
-        // Zaten açık bir kanalı var mı kontrol edelim
-        const existingChannel = guild.channels.cache.find(c => c.name === channelName.toLowerCase());
+        // Zaten açık talebi var mı kontrol et
+        const existingChannel = guild.channels.cache.find(c => c.name.toLowerCase() === channelName.toLowerCase());
         if (existingChannel) {
-            return interaction.reply({ content: `Zaten açık bir destek talebin var: ${existingChannel}`, ephemeral: true });
+            return interaction.reply({ content: `Zaten bu kategoride açık bir talebiniz bulunuyor: ${existingChannel}`, ephemeral: true });
         }
 
-        // Özel kanal oluşturma (Sadece kuran kişi ve yetkililer görür)
+        // Kategori isimlerini düzeltme
+        const kategoriIsimleri = {
+            'ceza-itiraz': 'Ceza İtirazı ⚖️',
+            'hile-bildirim': 'Hile Bildirimi ⚠️',
+            'genel-destek': 'Genel Destek 📩',
+            'odeme-sorunlari': 'Ödeme Sorunları 💳',
+            'yetkili-sikayet': 'Yetkili Şikayeti 🚨',
+            'bug-bildirimi': 'Hata-Bug Bildirimi 🛠️',
+            'klan-destegi': 'Klan Desteği 📝'
+        };
+
+        const secilenIsim = kategoriIsimleri[secim] || 'Destek';
+
+        // Özel Kanal Oluşturma
         const ticketChannel = await guild.channels.create({
             name: channelName,
             type: ChannelType.GuildText,
             permissionOverwrites: [
                 {
-                    id: guild.id, // @everyone için kanalı gizle
+                    id: guild.id,
                     deny: [PermissionFlagsBits.ViewChannel],
                 },
                 {
-                    id: interaction.user.id, // Talebi açan kişi görebilir
+                    id: interaction.user.id,
                     allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory],
                 },
             ],
         });
 
         const ticketEmbed = new EmbedBuilder()
-            .setTitle(`Hoş geldin ${interaction.user.username}!`)
-            .setDescription('Yetkililer en kısa sürede seninle ilgilenecektir. Talebi kapatmak için aşağıdaki butona tıklayabilirsin.')
+            .setTitle(`${secilenIsim} Talebi`)
+            .setDescription(`Merhaba <@${interaction.user.id}>, talebiniz **${secilenIsim}** kategorisinde oluşturuldu.\n\nLütfen konunuzla ilgili tüm detayları ve varsa kanıtlarınızı (ekran görüntüsü/video) buraya yazın. Yetkili ekibimiz en kısa sürede ilgilenecektir.`)
             .setColor('#57F287');
 
         const closeRow = new ActionRowBuilder().addComponents(
@@ -85,14 +139,14 @@ client.on('interactionCreate', async (interaction) => {
         );
 
         await ticketChannel.send({ content: `<@${interaction.user.id}>`, embeds: [ticketEmbed], components: [closeRow] });
-        await interaction.reply({ content: `Destek talebin oluşturuldu: ${ticketChannel}`, ephemeral: true });
+        await interaction.reply({ content: `Destek talebiniz oluşturuldu: ${ticketChannel}`, ephemeral: true });
     }
 
-    // Destek Talebi Kapatma
-    if (interaction.customId === 'ticket_kapat') {
-        await interaction.reply('Destek talebi 5 saniye içinde kapatılıyor...');
+    // Kanal Kapatma Butonu
+    if (interaction.isButton() && interaction.customId === 'ticket_kapat') {
+        await interaction.reply('Bu destek talebi 5 saniye içinde kapatılıp silinecektir...');
         setTimeout(() => {
-            interaction.channel.delete();
+            interaction.channel.delete().catch(() => {});
         }, 5000);
     }
 });
