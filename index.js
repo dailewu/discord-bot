@@ -75,7 +75,6 @@ client.on('messageCreate', async (message) => {
 
     // --- DESTEK KAPATMA KOMUTU (!kapat) ---
     if (content === '!kapat') {
-        // Komutun sadece destek kanallarında kullanılması kontrolü
         const destekKategorileri = ['ceza-itiraz-', 'hile-bildirim-', 'genel-destek-', 'odeme-sorunlari-', 'yetkili-sikayet-', 'bug-bildirimi-', 'klan-destegi-'];
         const isTicketChannel = destekKategorileri.some(kategori => message.channel.name.startsWith(kategori));
 
@@ -86,19 +85,19 @@ client.on('messageCreate', async (message) => {
         const confirmEmbed = new EmbedBuilder()
             .setTitle('🔒 Destek Talebi Kapatma Onayı')
             .setDescription('Bu destek talebini kapatmak istediğinizden emin misiniz?\n\n*Onaylarsanız kanal 5 saniye içerisinde kalıcı olarak silinecektir.*')
-            .setColor('#E74C3C');
+            .setColor('#B22222'); // Koyu Kırmızı Embed Rengi
 
         const confirmRow = new ActionRowBuilder().addComponents(
             new ButtonBuilder()
                 .setCustomId('ticket_confirm_close')
                 .setLabel('Evet, Talebi Kapat')
                 .setEmoji('✅')
-                .setStyle(ButtonStyle.Danger),
+                .setStyle(ButtonStyle.Success), // Yeşil Buton
             new ButtonBuilder()
                 .setCustomId('ticket_cancel_close')
                 .setLabel('İptal')
                 .setEmoji('❌')
-                .setStyle(ButtonStyle.Secondary)
+                .setStyle(ButtonStyle.Danger) // Koyu Kırmızı Buton
         );
 
         return message.channel.send({ embeds: [confirmEmbed], components: [confirmRow] });
