@@ -1,7 +1,7 @@
-const { Client, GatewayIntentBits, ActionRowBuilder, ButtonBuilder, ButtonStyle, ChannelType, PermissionFlagsBits, EmbedBuilder } = require('discord.js');
+const { Client, GatewayIntentBits, ActionRowBuilder, ButtonBuilder, ButtonStyle, ChannelType, PermissionFlagsBits, EmbedBuilder, MessageFlags } = require('discord.js');
 const http = require('http');
 
-// Render Port Hatasını Önlemek İçin Mini Web Server
+// Render Uptime Web Sunucusu (Port 3000)
 const server = http.createServer((req, res) => {
     res.writeHead(200, { 'Content-Type': 'text/plain' });
     res.end('CraftRiva Bot Aktif!');
@@ -105,7 +105,7 @@ client.on('interactionCreate', async (interaction) => {
         // Zaten açık talebi var mı kontrol et
         const existingChannel = guild.channels.cache.find(c => c.name.toLowerCase() === channelName.toLowerCase());
         if (existingChannel) {
-            return interaction.reply({ content: `Zaten bu kategoride açık bir talebiniz bulunuyor: ${existingChannel}`, ephemeral: true });
+            return interaction.reply({ content: `Zaten bu kategoride açık bir talebiniz bulunuyor: ${existingChannel}`, flags: MessageFlags.Ephemeral });
         }
 
         const kategoriIsimleri = {
@@ -150,7 +150,7 @@ client.on('interactionCreate', async (interaction) => {
         );
 
         await ticketChannel.send({ content: `<@${interaction.user.id}>`, embeds: [ticketEmbed], components: [closeRow] });
-        await interaction.reply({ content: `Destek talebiniz oluşturuldu: ${ticketChannel}`, ephemeral: true });
+        await interaction.reply({ content: `Destek talebiniz oluşturuldu: ${ticketChannel}`, flags: MessageFlags.Ephemeral });
     }
 
     // Kanal Kapatma Butonu
