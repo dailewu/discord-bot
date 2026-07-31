@@ -115,8 +115,7 @@ client.on('messageCreate', async (message) => {
                 'Sunucumuzda yaşadığınız sorunlar veya talepleriniz için aşağıdaki butonlara tıklayarak **Destek Talebi** oluşturabilirsiniz.\n\n' +
                 '📌 **Kurallar & Bilgilendirme:**\n' +
                 '• Gereksiz veya troll amaçlı talep açmak yasaktır.\n' +
-                '• Lütfen talebinizi oluşturduktan sonra sorununuzu detaylıca yazıp yetkililerin dönüş yapmasını bekleyin.\n' +
-                '• Talebi kapatmak istediğinizde kanala `!kapat` yazabilirsiniz.\n\n' +
+                '• Lütfen talebinizi oluşturduktan sonra sorununuzu detaylıca yazıp yetkililerin dönüş yapmasını bekleyin.\n\n' +
                 '**Yardım almak istediğiniz kategoriye aşağıdaki butonlardan tıklayın:**'
             )
             .setColor('#38B6FF')
@@ -279,7 +278,7 @@ client.on('interactionCreate', async (interaction) => {
 
             const ticketEmbed = new EmbedBuilder()
                 .setTitle(`${secilenIsim} Talebi`)
-                .setDescription(`Merhaba <@${interaction.user.id}>, talebiniz **${secilenIsim}** kategorisinde oluşturuldu.\n\nLütfen konunuzla ilgili tüm detayları ve varsa kanıtlarınızı buraya yazın. Yetkili ekibimiz en kısa sürede ilgilenecektir.\n\nTalebi kapatmak istediğiniz zaman buraya **\`!kapat\`** yazabilirsiniz.`)
+                .setDescription(`Merhaba <@${interaction.user.id}>, talebiniz **${secilenIsim}** kategorisinde oluşturuldu.\n\nLütfen konunuzla ilgili tüm detayları ve varsa kanıtlarınızı buraya yazın. Yetkili ekibimiz en kısa sürede ilgilenecektir.`)
                 .setColor('#38B6FF');
 
             await ticketChannel.send({ content: `<@${interaction.user.id}>`, embeds: [ticketEmbed] });
