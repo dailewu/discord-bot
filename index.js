@@ -267,13 +267,27 @@ client.on('interactionCreate', async (interaction) => {
 
             const secilenIsim = kategoriIsimleri[secim] || 'Destek';
 
+            // Destek Yetkilisi Rolünü Bul
+            const supportRole = guild.roles.cache.find(r => r.name === 'Destek Yetkilisi');
+
+            // İzinleri Ayarla
+            const permissionOverwrites = [
+                { id: guild.id, deny: [PermissionFlagsBits.ViewChannel] },
+                { id: interaction.user.id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory] },
+            ];
+
+            // Eğer Destek Yetkilisi rolü varsa kanala izin ver
+            if (supportRole) {
+                permissionOverwrites.push({
+                    id: supportRole.id,
+                    allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory]
+                });
+            }
+
             const ticketChannel = await guild.channels.create({
                 name: channelName,
                 type: ChannelType.GuildText,
-                permissionOverwrites: [
-                    { id: guild.id, deny: [PermissionFlagsBits.ViewChannel] },
-                    { id: interaction.user.id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory] },
-                ],
+                permissionOverwrites: permissionOverwrites,
             });
 
             const ticketEmbed = new EmbedBuilder()
@@ -281,7 +295,10 @@ client.on('interactionCreate', async (interaction) => {
                 .setDescription(`Merhaba <@${interaction.user.id}>, talebiniz **${secilenIsim}** kategorisinde oluşturuldu.\n\nLütfen konunuzla ilgili tüm detayları ve varsa kanıtlarınızı buraya yazın. Yetkili ekibimiz en kısa sürede ilgilenecektir.`)
                 .setColor('#38B6FF');
 
-            await ticketChannel.send({ content: `<@${interaction.user.id}>`, embeds: [ticketEmbed] });
+            // Etiketleme mesajı (Eğer rol varsa yetkilileri de etiketler)
+            const mentionText = supportRole ? `<@${interaction.user.id}> | <@&${supportRole.id}>` : `<@${interaction.user.id}>`;
+
+            await ticketChannel.send({ content: mentionText, embeds: [ticketEmbed] });
             await interaction.reply({ content: `Destek talebiniz oluşturuldu: ${ticketChannel}`, flags: MessageFlags.Ephemeral }).catch(() => {});
         }
 
