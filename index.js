@@ -24,6 +24,15 @@ const client = new Client({
 // Çekiliş Verilerini Tutma
 const giveaways = new Map();
 
+// Botun Çökmesini Engelleyen Hata Yakalayıcılar
+process.on('unhandledRejection', error => {
+    console.error('Yakalanamayan Hata (Unhandled Rejection):', error);
+});
+
+process.on('uncaughtException', error => {
+    console.error('Yakalanamayan İstisna (Uncaught Exception):', error);
+});
+
 client.once('ready', () => {
     console.log(`Bot başarıyla giriş yaptı: ${client.user.tag}`);
 });
@@ -31,9 +40,7 @@ client.once('ready', () => {
 // --- OTOMATİK ROL VERME SİSTEMİ ---
 client.on('guildMemberAdd', async (member) => {
     try {
-        // Otomatik verilecek rolün adı (Discord sunucundaki rol ismiyle tam aynı olmalı)
         const roleName = 'Üye'; 
-
         const role = member.guild.roles.cache.find(r => r.name === roleName);
 
         if (role) {
@@ -98,7 +105,7 @@ client.on('messageCreate', async (message) => {
         );
 
         await message.channel.send({ embeds: [embed], components: [row1, row2] });
-        await message.delete();
+        await message.delete().catch(() => {});
     }
 
     // --- ÇEKİLİŞ KOMUTLARI ---
@@ -140,7 +147,7 @@ client.on('messageCreate', async (message) => {
                 .setStyle(ButtonStyle.Primary)
         );
 
-        await message.delete();
+        await message.delete().catch(() => {});
         const giveawayMsg = await message.channel.send({ embeds: [embed], components: [row] });
 
         const giveawayData = {
@@ -180,88 +187,92 @@ client.on('messageCreate', async (message) => {
 client.on('interactionCreate', async (interaction) => {
     if (!interaction.isButton()) return;
 
-    if (interaction.customId === 'giveaway_join') {
-        const giveaway = giveaways.get(interaction.message.id);
-        if (!giveaway || giveaway.ended) {
-            return interaction.reply({ content: 'Bu çekiliş sona ermiş!', flags: MessageFlags.Ephemeral });
+    try {
+        if (interaction.customId === 'giveaway_join') {
+            const giveaway = giveaways.get(interaction.message.id);
+            if (!giveaway || giveaway.ended) {
+                return interaction.reply({ content: 'Bu çekiliş sona ermiş!', flags: MessageFlags.Ephemeral }).catch(() => {});
+            }
+
+            const userId = interaction.user.id;
+            if (giveaway.participants.has(userId)) {
+                giveaway.participants.delete(userId);
+                await interaction.reply({ content: 'Çekilişten katılımınızı çektiniz.', flags: MessageFlags.Ephemeral }).catch(() => {});
+            } else {
+                giveaway.participants.add(userId);
+                await interaction.reply({ content: 'Çekilişe başarıyla katıldınız! 🎉', flags: MessageFlags.Ephemeral }).catch(() => {});
+            }
+
+            const updatedRow = new ActionRowBuilder().addComponents(
+                new ButtonBuilder()
+                    .setCustomId('giveaway_join')
+                    .setLabel(`Katıl (${giveaway.participants.size})`)
+                    .setEmoji('🎉')
+                    .setStyle(ButtonStyle.Primary)
+            );
+
+            await interaction.message.edit({ components: [updatedRow] }).catch(() => {});
         }
 
-        const userId = interaction.user.id;
-        if (giveaway.participants.has(userId)) {
-            giveaway.participants.delete(userId);
-            await interaction.reply({ content: 'Çekilişten katılımınızı çektiniz.', flags: MessageFlags.Ephemeral });
-        } else {
-            giveaway.participants.add(userId);
-            await interaction.reply({ content: 'Çekilişe başarıyla katıldınız! 🎉', flags: MessageFlags.Ephemeral });
+        if (interaction.customId.startsWith('ticket_') && interaction.customId !== 'ticket_kapat') {
+            const secim = interaction.customId.replace('ticket_', '');
+            const guild = interaction.guild;
+            const channelName = `${secim}-${interaction.user.username}`;
+
+            const existingChannel = guild.channels.cache.find(c => c.name.toLowerCase() === channelName.toLowerCase());
+            if (existingChannel) {
+                return interaction.reply({ content: `Zaten bu kategoride açık bir talebiniz bulunuyor: ${existingChannel}`, flags: MessageFlags.Ephemeral }).catch(() => {});
+            }
+
+            const kategoriIsimleri = {
+                'ceza-itiraz': 'Ceza İtirazı ⚖️',
+                'hile-bildirim': 'Hile Bildirimi ⚠️',
+                'genel-destek': 'Genel Destek 📩',
+                'odeme-sorunlari': 'Ödeme Sorunları 💳',
+                'yetkili-sikayet': 'Yetkili Şikayeti 🚨',
+                'bug-bildirimi': 'Hata-Bug Bildirimi 🛠️',
+                'klan-destegi': 'Klan Desteği 📝'
+            };
+
+            const secilenIsim = kategoriIsimleri[secim] || 'Destek';
+
+            const ticketChannel = await guild.channels.create({
+                name: channelName,
+                type: ChannelType.GuildText,
+                permissionOverwrites: [
+                    { id: guild.id, deny: [PermissionFlagsBits.ViewChannel] },
+                    { id: interaction.user.id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory] },
+                ],
+            });
+
+            const ticketEmbed = new EmbedBuilder()
+                .setTitle(`${secilenIsim} Talebi`)
+                .setDescription(`Merhaba <@${interaction.user.id}>, talebiniz **${secilenIsim}** kategorisinde oluşturuldu.\n\nLütfen konunuzla ilgili tüm detayları ve varsa kanıtlarınızı buraya yazın. Yetkili ekibimiz en kısa sürede ilgilenecektir.`)
+                .setColor('#38B6FF');
+
+            const closeRow = new ActionRowBuilder().addComponents(
+                new ButtonBuilder().setCustomId('ticket_kapat').setLabel('Talebi Kapat').setEmoji('🔒').setStyle(ButtonStyle.Danger)
+            );
+
+            await ticketChannel.send({ content: `<@${interaction.user.id}>`, embeds: [ticketEmbed], components: [closeRow] });
+            await interaction.reply({ content: `Destek talebiniz oluşturuldu: ${ticketChannel}`, flags: MessageFlags.Ephemeral }).catch(() => {});
         }
 
-        const updatedRow = new ActionRowBuilder().addComponents(
-            new ButtonBuilder()
-                .setCustomId('giveaway_join')
-                .setLabel(`Katıl (${giveaway.participants.size})`)
-                .setEmoji('🎉')
-                .setStyle(ButtonStyle.Primary)
-        );
-
-        await interaction.message.edit({ components: [updatedRow] });
-    }
-
-    if (interaction.customId.startsWith('ticket_') && interaction.customId !== 'ticket_kapat') {
-        const secim = interaction.customId.replace('ticket_', '');
-        const guild = interaction.guild;
-        const channelName = `${secim}-${interaction.user.username}`;
-
-        const existingChannel = guild.channels.cache.find(c => c.name.toLowerCase() === channelName.toLowerCase());
-        if (existingChannel) {
-            return interaction.reply({ content: `Zaten bu kategoride açık bir talebiniz bulunuyor: ${existingChannel}`, flags: MessageFlags.Ephemeral });
+        if (interaction.customId === 'ticket_kapat') {
+            await interaction.reply('Bu destek talebi 5 saniye içinde kapatılıp silinecektir...').catch(() => {});
+            setTimeout(() => {
+                interaction.channel.delete().catch(() => {});
+            }, 5000);
         }
-
-        const kategoriIsimleri = {
-            'ceza-itiraz': 'Ceza İtirazı ⚖️',
-            'hile-bildirim': 'Hile Bildirimi ⚠️',
-            'genel-destek': 'Genel Destek 📩',
-            'odeme-sorunlari': 'Ödeme Sorunları 💳',
-            'yetkili-sikayet': 'Yetkili Şikayeti 🚨',
-            'bug-bildirimi': 'Hata-Bug Bildirimi 🛠️',
-            'klan-destegi': 'Klan Desteği 📝'
-        };
-
-        const secilenIsim = kategoriIsimleri[secim] || 'Destek';
-
-        const ticketChannel = await guild.channels.create({
-            name: channelName,
-            type: ChannelType.GuildText,
-            permissionOverwrites: [
-                { id: guild.id, deny: [PermissionFlagsBits.ViewChannel] },
-                { id: interaction.user.id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory] },
-            ],
-        });
-
-        const ticketEmbed = new EmbedBuilder()
-            .setTitle(`${secilenIsim} Talebi`)
-            .setDescription(`Merhaba <@${interaction.user.id}>, talebiniz **${secilenIsim}** kategorisinde oluşturuldu.\n\nLütfen konunuzla ilgili tüm detayları ve varsa kanıtlarınızı buraya yazın. Yetkili ekibimiz en kısa sürede ilgilenecektir.`)
-            .setColor('#38B6FF');
-
-        const closeRow = new ActionRowBuilder().addComponents(
-            new ButtonBuilder().setCustomId('ticket_kapat').setLabel('Talebi Kapat').setEmoji('🔒').setStyle(ButtonStyle.Danger)
-        );
-
-        await ticketChannel.send({ content: `<@${interaction.user.id}>`, embeds: [ticketEmbed], components: [closeRow] });
-        await interaction.reply({ content: `Destek talebiniz oluşturuldu: ${ticketChannel}`, flags: MessageFlags.Ephemeral });
-    }
-
-    if (interaction.customId === 'ticket_kapat') {
-        await interaction.reply('Bu destek talebi 5 saniye içinde kapatılıp silinecektir...');
-        setTimeout(() => {
-            interaction.channel.delete().catch(() => {});
-        }, 5000);
+    } catch (err) {
+        console.error('Etkileşim sırasında hata oluştu:', err);
     }
 });
 
 async function endGiveaway(messageId, commandMsg = null) {
     const giveaway = giveaways.get(messageId);
     if (!giveaway || giveaway.ended) {
-        if (commandMsg) commandMsg.reply('Çekiliş bulunamadı ya da zaten sonlandırılmış.');
+        if (commandMsg) commandMsg.reply('Çekiliş bulunamadı ya da zaten sonlandırılmış.').catch(() => {});
         return;
     }
 
@@ -300,8 +311,8 @@ async function endGiveaway(messageId, commandMsg = null) {
                 .setColor('#2ECC71')
                 .setFooter({ text: 'CraftRiva Çekiliş Sistemi' });
 
-            await giveawayMsg.edit({ embeds: [endEmbed], components: [disabledRow] });
-            await channel.send(`Tebrikler ${winnerMentions}! **${giveaway.prize}** kazandınız! 🥳`);
+            await giveawayMsg.edit({ embeds: [endEmbed], components: [disabledRow] }).catch(() => {});
+            await channel.send(`Tebrikler ${winnerMentions}! **${giveaway.prize}** kazandınız! 🥳`).catch(() => {});
         } else {
             endEmbed = new EmbedBuilder()
                 .setTitle(`🎉 ÇEKİLİŞ İPTAL EDİLDİ: ${giveaway.prize}`)
@@ -309,7 +320,7 @@ async function endGiveaway(messageId, commandMsg = null) {
                 .setColor('#E74C3C')
                 .setFooter({ text: 'CraftRiva Çekiliş Sistemi' });
 
-            await giveawayMsg.edit({ embeds: [endEmbed], components: [disabledRow] });
+            await giveawayMsg.edit({ embeds: [endEmbed], components: [disabledRow] }).catch(() => {});
         }
     } catch (e) {
         console.error('Çekiliş sonlandırma hatası:', e);
@@ -318,13 +329,13 @@ async function endGiveaway(messageId, commandMsg = null) {
 
 async function rerollGiveaway(messageId, commandMsg) {
     const giveaway = giveaways.get(messageId);
-    if (!giveaway) return commandMsg.reply('Çekiliş bulunamadı.');
+    if (!giveaway) return commandMsg.reply('Çekiliş bulunamadı.').catch(() => {});
 
     const participantArray = Array.from(giveaway.participants);
-    if (participantArray.length === 0) return commandMsg.reply('Bu çekilişte hiç katılımcı yoktu!');
+    if (participantArray.length === 0) return commandMsg.reply('Bu çekilişte hiç katılımcı yoktu!').catch(() => {});
 
     const randomWinner = participantArray[Math.floor(Math.random() * participantArray.length)];
-    commandMsg.channel.send(`🎲 **Yeni Kazanan (Yedek):** <@${randomWinner}>! Tebrikler! 🎉`);
+    commandMsg.channel.send(`🎲 **Yeni Kazanan (Yedek):** <@${randomWinner}>! Tebrikler! 🎉`).catch(() => {});
 }
 
 client.login(process.env.DISCORD_TOKEN);
