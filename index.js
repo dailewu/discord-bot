@@ -1,4 +1,4 @@
-const { Client, GatewayIntentBits, ActionRowBuilder, ButtonBuilder, ButtonStyle, ChannelType, PermissionFlagsBits, EmbedBuilder, MessageFlags } = require('discord.js');
+const { Client, GatewayIntentBits, ActionRowBuilder, ButtonBuilder, ButtonStyle, ChannelType, PermissionFlagsBits, EmbedBuilder, MessageFlags, Collection } = require('discord.js');
 const http = require('http');
 
 // Render Uptime Web Sunucusu
@@ -18,8 +18,14 @@ const client = new Client({
         GatewayIntentBits.MessageContent,
         GatewayIntentBits.GuildMessageReactions,
         GatewayIntentBits.GuildMembers,
+        GatewayIntentBits.GuildInvites
     ]
 });
+
+// Davet Verilerini Önbellekte Tutma Maps
+const invitesCache = new Collection(); 
+const userInvites = new Map(); 
+const memberInviter = new Map(); 
 
 // Çekiliş Verilerini Tutma
 const giveaways = new Map();
@@ -33,24 +39,130 @@ process.on('uncaughtException', error => {
     console.error('Yakalanamayan İstisna (Uncaught Exception):', error);
 });
 
-client.once('ready', () => {
+// Bot Hazır Olduğunda Davetleri Önbelleğe Al
+client.once('ready', async () => {
     console.log(`Bot başarıyla giriş yaptı: ${client.user.tag}`);
+
+    client.guilds.cache.forEach(async (guild) => {
+        try {
+            const firstInvites = await guild.invites.fetch();
+            const codeUses = new Collection();
+            firstInvites.forEach((inv) => codeUses.set(inv.code, inv.uses));
+            invitesCache.set(guild.id, codeUses);
+        } catch (err) {
+            console.log(`Davetler çekilirken hata (${guild.name}):`, err.message);
+        }
+    });
 });
 
-// --- OTOMATİK ROL VERME SİSTEMİ ---
+// Yeni Davet Oluşturulduğunda Önbelleği Güncelle
+client.on('inviteCreate', async (invite) => {
+    const guildInvites = invitesCache.get(invite.guild.id) || new Collection();
+    guildInvites.set(invite.code, invite.uses);
+    invitesCache.set(invite.guild.id, guildInvites);
+});
+
+// Davet Silindiğinde Önbelleği Güncelle
+client.on('inviteDelete', async (invite) => {
+    const guildInvites = invitesCache.get(invite.guild.id);
+    if (guildInvites) {
+        guildInvites.delete(invite.code);
+    }
+});
+
+// --- OTOMATİK ROL VE DAVET TAKİBİ (GİRİŞ) ---
 client.on('guildMemberAdd', async (member) => {
     try {
+        // 1. Otomatik Rol Verme
         const roleName = 'Üye'; 
         const role = member.guild.roles.cache.find(r => r.name === roleName);
+        if (role) await member.roles.add(role).catch(() => {});
 
-        if (role) {
-            await member.roles.add(role);
-            console.log(`${member.user.tag} kullanıcısına ${roleName} rolü verildi.`);
+        // 2. Davet Takibi
+        const newInvites = await member.guild.invites.fetch();
+        const oldInvites = invitesCache.get(member.guild.id) || new Collection();
+        
+        const invite = newInvites.find((i) => i.uses > (oldInvites.get(i.code) || 0));
+        
+        const codeUses = new Collection();
+        newInvites.forEach((inv) => codeUses.set(inv.code, inv.uses));
+        invitesCache.set(member.guild.id, codeUses);
+
+        // Belirtilen Davet Kanalı
+        const inviteChannel = member.guild.channels.cache.find(c => c.name === '✉️┃invite-kanalı' || c.name === 'invite-kanalı');
+
+        if (invite) {
+            const inviter = invite.inviter;
+            if (inviter) {
+                const currentCount = userInvites.get(inviter.id) || 0;
+                const newCount = currentCount + 1;
+                userInvites.set(inviter.id, newCount);
+
+                memberInviter.set(member.id, inviter.id);
+
+                if (inviteChannel) {
+                    const embed = new EmbedBuilder()
+                        .setTitle('📥 Yeni Üye Katıldı!')
+                        .setDescription(`Aramıza hoş geldin <@${member.id}>!\n\n👤 **Davet Eden:** <@${inviter.id}>\n📊 **Toplam Davet Sayısı:** \`${newCount}\``)
+                        .setColor('#2ECC71')
+                        .setThumbnail(member.user.displayAvatarURL())
+                        .setTimestamp();
+
+                    inviteChannel.send({ embeds: [embed] }).catch(() => {});
+                }
+            }
         } else {
-            console.log(`Hata: Sunucuda "${roleName}" adında bir rol bulunamadı!`);
+            if (inviteChannel) {
+                const embed = new EmbedBuilder()
+                    .setTitle('📥 Yeni Üye Katıldı!')
+                    .setDescription(`Aramıza hoş geldin <@${member.id}>!\n\n❓ **Davet Eden:** Bulunamadı (Özel URL veya Bot)`)
+                    .setColor('#3498DB')
+                    .setThumbnail(member.user.displayAvatarURL())
+                    .setTimestamp();
+
+                inviteChannel.send({ embeds: [embed] }).catch(() => {});
+            }
         }
     } catch (error) {
-        console.error('Otomatik rol verilirken hata oluştu:', error);
+        console.error('Giriş takibinde hata oluştu:', error);
+    }
+});
+
+// --- DAVET DÜŞÜRME TAKİBİ (ÇIKIŞ) ---
+client.on('guildMemberRemove', async (member) => {
+    try {
+        const inviterId = memberInviter.get(member.id);
+        const inviteChannel = member.guild.channels.cache.find(c => c.name === '✉️┃invite-kanalı' || c.name === 'invite-kanalı');
+
+        if (inviterId) {
+            const currentCount = userInvites.get(inviterId) || 0;
+            const newCount = Math.max(0, currentCount - 1);
+            userInvites.set(inviterId, newCount);
+
+            memberInviter.delete(member.id);
+
+            if (inviteChannel) {
+                const embed = new EmbedBuilder()
+                    .setTitle('📤 Üye Ayrıldı')
+                    .setDescription(`**${member.user.tag}** sunucudan ayrıldı.\n\n👤 **Davet Eden:** <@${inviterId}>\n📉 **Güncel Davet Sayısı:** \`${newCount}\``)
+                    .setColor('#E74C3C')
+                    .setTimestamp();
+
+                inviteChannel.send({ embeds: [embed] }).catch(() => {});
+            }
+        } else {
+            if (inviteChannel) {
+                const embed = new EmbedBuilder()
+                    .setTitle('📤 Üye Ayrıldı')
+                    .setDescription(`**${member.user.tag}** sunucudan ayrıldı.`)
+                    .setColor('#95A5A6')
+                    .setTimestamp();
+
+                inviteChannel.send({ embeds: [embed] }).catch(() => {});
+            }
+        }
+    } catch (error) {
+        console.error('Çıkış takibinde hata oluştu:', error);
     }
 });
 
@@ -59,6 +171,19 @@ client.on('messageCreate', async (message) => {
     if (message.author.bot) return;
 
     const content = message.content.toLowerCase();
+
+    // --- DAVET SORGULAMA KOMUTU (!davetim / !invites) ---
+    if (content === '!davetim' || content === '!invites') {
+        const targetUser = message.mentions.users.first() || message.author;
+        const count = userInvites.get(targetUser.id) || 0;
+
+        const embed = new EmbedBuilder()
+            .setTitle('📊 Davet İstatistikleri')
+            .setDescription(`<@${targetUser.id}> kullanıcısının şu anki aktif davet sayısı: **${count}**`)
+            .setColor('#38B6FF');
+
+        return message.reply({ embeds: [embed] });
+    }
 
     // --- SUNUCU BİLGİ KOMUTLARI (!ip, !map, !site) ---
     if (content === '!ip') {
@@ -267,16 +392,13 @@ client.on('interactionCreate', async (interaction) => {
 
             const secilenIsim = kategoriIsimleri[secim] || 'Destek';
 
-            // Destek Yetkilisi Rolünü Bul
             const supportRole = guild.roles.cache.find(r => r.name === 'Destek Yetkilisi');
 
-            // İzinleri Ayarla
             const permissionOverwrites = [
                 { id: guild.id, deny: [PermissionFlagsBits.ViewChannel] },
                 { id: interaction.user.id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory] },
             ];
 
-            // Eğer Destek Yetkilisi rolü varsa kanala izin ver
             if (supportRole) {
                 permissionOverwrites.push({
                     id: supportRole.id,
@@ -295,7 +417,6 @@ client.on('interactionCreate', async (interaction) => {
                 .setDescription(`Merhaba <@${interaction.user.id}>, talebiniz **${secilenIsim}** kategorisinde oluşturuldu.\n\nLütfen konunuzla ilgili tüm detayları ve varsa kanıtlarınızı buraya yazın. Yetkili ekibimiz en kısa sürede ilgilenecektir.`)
                 .setColor('#38B6FF');
 
-            // Etiketleme mesajı (Eğer rol varsa yetkilileri de etiketler)
             const mentionText = supportRole ? `<@${interaction.user.id}> | <@&${supportRole.id}>` : `<@${interaction.user.id}>`;
 
             await ticketChannel.send({ content: mentionText, embeds: [ticketEmbed] });
