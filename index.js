@@ -96,8 +96,8 @@ client.on('messageCreate', async (message) => {
             new ButtonBuilder()
                 .setCustomId('ticket_cancel_close')
                 .setLabel('İptal')
-                .setEmoji('❌')
-                .setStyle(ButtonStyle.Danger)
+                .setEmoji('🛑')
+                .setStyle(ButtonStyle.Secondary) // Koyu gri zemin ile cırtlak kırmızılığı yok eder
         );
 
         return message.channel.send({ embeds: [confirmEmbed], components: [confirmRow] });
