@@ -51,7 +51,18 @@ client.on('guildMemberAdd', async (member) => {
 client.on('messageCreate', async (message) => {
     if (message.author.bot) return;
 
-    // --- DESTEK PANELSİ KURULUMU ---
+    const content = message.content.toLowerCase();
+
+    // --- SUNUCU BİLGİ KOMUTLARI (!ip VE !map) ---
+    if (content === '!ip') {
+        return message.reply('🎮 **CraftRiva Sunucu IP Adresi:** `oyna.craftriva.com`');
+    }
+
+    if (content === '!map') {
+        return message.reply('🗺️ **CraftRiva Harita Linki:** http://178.63.186.223:25685/#towny:2431:0:-909:3375:0:0:0:0:perspective');
+    }
+
+    // --- DESTEK PANELİ KURULUMU ---
     if (message.content === '!destek-kur') {
         if (!message.member.permissions.has(PermissionFlagsBits.Administrator)) {
             return message.reply('Bu komutu kullanmak için **Yönetici** yetkisine sahip olmalısın!');
