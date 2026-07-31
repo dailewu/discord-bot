@@ -17,6 +17,7 @@ const client = new Client({
         GatewayIntentBits.GuildMessages,
         GatewayIntentBits.MessageContent,
         GatewayIntentBits.GuildMessageReactions,
+        GatewayIntentBits.GuildMembers, // Otomatik rol vermek için gerekli izin
     ]
 });
 
@@ -25,6 +26,25 @@ const giveaways = new Map();
 
 client.once('ready', () => {
     console.log(`Bot başarıyla giriş yaptı: ${client.user.tag}`);
+});
+
+// --- OTOMATİK ROL VERME SİSTEMİ ---
+client.on('guildMemberAdd', async (member) => {
+    try {
+        // Otomatik verilecek rolün adı (Discord sunucundaki rol ismiyle tam aynı olmalı)
+        const roleName = 'Üye'; 
+
+        const role = member.guild.roles.cache.find(r => r.name === roleName);
+
+        if (role) {
+            await member.roles.add(role);
+            console.log(`${member.user.tag} kullanıcısına ${roleName} rolü verildi.`);
+        } else {
+            console.log(`Hata: Sunucuda "${roleName}" adında bir rol bulunamadı!`);
+        }
+    } catch (error) {
+        console.error('Otomatik rol verilirken hata oluştu:', error);
+    }
 });
 
 // Komut Dinleyicisi
@@ -67,8 +87,6 @@ client.on('messageCreate', async (message) => {
     }
 
     // --- ÇEKİLİŞ KOMUTLARI ---
-
-    // !çekiliş-başlat <süre> <kazanan> <ödül>
     if (message.content.startsWith('!çekiliş-başlat')) {
         if (!message.member.permissions.has(PermissionFlagsBits.Administrator)) {
             return message.reply('Çekiliş başlatmak için **Yönetici** yetkisine sahip olmalısın!');
@@ -123,13 +141,11 @@ client.on('messageCreate', async (message) => {
 
         giveaways.set(giveawayMsg.id, giveawayData);
 
-        // Zamanlayıcı
         setTimeout(() => {
             endGiveaway(giveawayMsg.id);
         }, msTime);
     }
 
-    // !çekiliş-bitir <mesajID>
     if (message.content.startsWith('!çekiliş-bitir')) {
         if (!message.member.permissions.has(PermissionFlagsBits.Administrator)) return;
         const msgId = message.content.split(' ')[1];
@@ -137,7 +153,6 @@ client.on('messageCreate', async (message) => {
         endGiveaway(msgId, message);
     }
 
-    // !çekiliş-yeniden <mesajID>
     if (message.content.startsWith('!çekiliş-yeniden')) {
         if (!message.member.permissions.has(PermissionFlagsBits.Administrator)) return;
         const msgId = message.content.split(' ')[1];
@@ -150,7 +165,6 @@ client.on('messageCreate', async (message) => {
 client.on('interactionCreate', async (interaction) => {
     if (!interaction.isButton()) return;
 
-    // --- ÇEKİLİŞ KATILMA BUTONU ---
     if (interaction.customId === 'giveaway_join') {
         const giveaway = giveaways.get(interaction.message.id);
         if (!giveaway || giveaway.ended) {
@@ -166,7 +180,6 @@ client.on('interactionCreate', async (interaction) => {
             await interaction.reply({ content: 'Çekilişe başarıyla katıldınız! 🎉', flags: MessageFlags.Ephemeral });
         }
 
-        // Buton sayısını güncelle
         const updatedRow = new ActionRowBuilder().addComponents(
             new ButtonBuilder()
                 .setCustomId('giveaway_join')
@@ -178,7 +191,6 @@ client.on('interactionCreate', async (interaction) => {
         await interaction.message.edit({ components: [updatedRow] });
     }
 
-    // --- DESTEK TİCKET ETKİLEŞİMLERİ ---
     if (interaction.customId.startsWith('ticket_') && interaction.customId !== 'ticket_kapat') {
         const secim = interaction.customId.replace('ticket_', '');
         const guild = interaction.guild;
@@ -231,7 +243,6 @@ client.on('interactionCreate', async (interaction) => {
     }
 });
 
-// Çekiliş Bitirme Fonksiyonu
 async function endGiveaway(messageId, commandMsg = null) {
     const giveaway = giveaways.get(messageId);
     if (!giveaway || giveaway.ended) {
@@ -290,7 +301,6 @@ async function endGiveaway(messageId, commandMsg = null) {
     }
 }
 
-// Yeniden Kazanan Seçme (Reroll) Fonksiyonu
 async function rerollGiveaway(messageId, commandMsg) {
     const giveaway = giveaways.get(messageId);
     if (!giveaway) return commandMsg.reply('Çekiliş bulunamadı.');
