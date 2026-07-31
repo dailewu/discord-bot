@@ -17,7 +17,7 @@ const client = new Client({
         GatewayIntentBits.GuildMessages,
         GatewayIntentBits.MessageContent,
         GatewayIntentBits.GuildMessageReactions,
-        GatewayIntentBits.GuildMembers, // Otomatik rol vermek için gerekli izin
+        GatewayIntentBits.GuildMembers,
     ]
 });
 
@@ -73,6 +73,37 @@ client.on('messageCreate', async (message) => {
         return message.reply('🌐 **CraftRiva Web Sitesi:** https://craftriva.com/');
     }
 
+    // --- DESTEK KAPATMA KOMUTU (!kapat) ---
+    if (content === '!kapat') {
+        // Komutun sadece destek kanallarında kullanılması kontrolü
+        const destekKategorileri = ['ceza-itiraz-', 'hile-bildirim-', 'genel-destek-', 'odeme-sorunlari-', 'yetkili-sikayet-', 'bug-bildirimi-', 'klan-destegi-'];
+        const isTicketChannel = destekKategorileri.some(kategori => message.channel.name.startsWith(kategori));
+
+        if (!isTicketChannel) {
+            return message.reply('⚠️ Bu komut sadece açık olan destek talebi kanallarında kullanılabilir!').catch(() => {});
+        }
+
+        const confirmEmbed = new EmbedBuilder()
+            .setTitle('🔒 Destek Talebi Kapatma Onayı')
+            .setDescription('Bu destek talebini kapatmak istediğinizden emin misiniz?\n\n*Onaylarsanız kanal 5 saniye içerisinde kalıcı olarak silinecektir.*')
+            .setColor('#E74C3C');
+
+        const confirmRow = new ActionRowBuilder().addComponents(
+            new ButtonBuilder()
+                .setCustomId('ticket_confirm_close')
+                .setLabel('Evet, Talebi Kapat')
+                .setEmoji('✅')
+                .setStyle(ButtonStyle.Danger),
+            new ButtonBuilder()
+                .setCustomId('ticket_cancel_close')
+                .setLabel('İptal')
+                .setEmoji('❌')
+                .setStyle(ButtonStyle.Secondary)
+        );
+
+        return message.channel.send({ embeds: [confirmEmbed], components: [confirmRow] });
+    }
+
     // --- DESTEK PANELİ KURULUMU ---
     if (message.content === '!destek-kur') {
         if (!message.member.permissions.has(PermissionFlagsBits.Administrator)) {
@@ -85,7 +116,8 @@ client.on('messageCreate', async (message) => {
                 'Sunucumuzda yaşadığınız sorunlar veya talepleriniz için aşağıdaki butonlara tıklayarak **Destek Talebi** oluşturabilirsiniz.\n\n' +
                 '📌 **Kurallar & Bilgilendirme:**\n' +
                 '• Gereksiz veya troll amaçlı talep açmak yasaktır.\n' +
-                '• Lütfen talebinizi oluşturduktan sonra sorununuzu detaylıca yazıp yetkililerin dönüş yapmasını bekleyin.\n\n' +
+                '• Lütfen talebinizi oluşturduktan sonra sorununuzu detaylıca yazıp yetkililerin dönüş yapmasını bekleyin.\n' +
+                '• Talebi kapatmak istediğinizde kanala `!kapat` yazabilirsiniz.\n\n' +
                 '**Yardım almak istediğiniz kategoriye aşağıdaki butonlardan tıklayın:**'
             )
             .setColor('#38B6FF')
@@ -214,7 +246,8 @@ client.on('interactionCreate', async (interaction) => {
             await interaction.message.edit({ components: [updatedRow] }).catch(() => {});
         }
 
-        if (interaction.customId.startsWith('ticket_') && interaction.customId !== 'ticket_kapat') {
+        // --- BİLET OLUŞTURMA İŞLEMİ ---
+        if (interaction.customId.startsWith('ticket_') && !['ticket_confirm_close', 'ticket_cancel_close'].includes(interaction.customId)) {
             const secim = interaction.customId.replace('ticket_', '');
             const guild = interaction.guild;
             const channelName = `${secim}-${interaction.user.username}`;
@@ -247,22 +280,24 @@ client.on('interactionCreate', async (interaction) => {
 
             const ticketEmbed = new EmbedBuilder()
                 .setTitle(`${secilenIsim} Talebi`)
-                .setDescription(`Merhaba <@${interaction.user.id}>, talebiniz **${secilenIsim}** kategorisinde oluşturuldu.\n\nLütfen konunuzla ilgili tüm detayları ve varsa kanıtlarınızı buraya yazın. Yetkili ekibimiz en kısa sürede ilgilenecektir.`)
+                .setDescription(`Merhaba <@${interaction.user.id}>, talebiniz **${secilenIsim}** kategorisinde oluşturuldu.\n\nLütfen konunuzla ilgili tüm detayları ve varsa kanıtlarınızı buraya yazın. Yetkili ekibimiz en kısa sürede ilgilenecektir.\n\nTalebi kapatmak istediğiniz zaman buraya **\`!kapat\`** yazabilirsiniz.`)
                 .setColor('#38B6FF');
 
-            const closeRow = new ActionRowBuilder().addComponents(
-                new ButtonBuilder().setCustomId('ticket_kapat').setLabel('Talebi Kapat').setEmoji('🔒').setStyle(ButtonStyle.Danger)
-            );
-
-            await ticketChannel.send({ content: `<@${interaction.user.id}>`, embeds: [ticketEmbed], components: [closeRow] });
+            await ticketChannel.send({ content: `<@${interaction.user.id}>`, embeds: [ticketEmbed] });
             await interaction.reply({ content: `Destek talebiniz oluşturuldu: ${ticketChannel}`, flags: MessageFlags.Ephemeral }).catch(() => {});
         }
 
-        if (interaction.customId === 'ticket_kapat') {
-            await interaction.reply('Bu destek talebi 5 saniye içinde kapatılıp silinecektir...').catch(() => {});
+        // --- KANALI KAPATMA ONAY BUTONLARI ---
+        if (interaction.customId === 'ticket_confirm_close') {
+            await interaction.reply('🔒 Destek talebi onaylandı, kanal 5 saniye içinde siliniyor...').catch(() => {});
             setTimeout(() => {
                 interaction.channel.delete().catch(() => {});
             }, 5000);
+        }
+
+        if (interaction.customId === 'ticket_cancel_close') {
+            await interaction.message.delete().catch(() => {});
+            await interaction.reply({ content: 'Kapatma işlemi iptal edildi.', flags: MessageFlags.Ephemeral }).catch(() => {});
         }
     } catch (err) {
         console.error('Etkileşim sırasında hata oluştu:', err);
