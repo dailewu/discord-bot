@@ -96,7 +96,7 @@ client.on('messageCreate', async (message) => {
             new ButtonBuilder()
                 .setCustomId('ticket_cancel_close')
                 .setLabel('İptal')
-                .setEmoji('✖')
+                .setEmoji('❌')
                 .setStyle(ButtonStyle.Danger)
         );
 
