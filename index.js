@@ -53,13 +53,17 @@ client.on('messageCreate', async (message) => {
 
     const content = message.content.toLowerCase();
 
-    // --- SUNUCU BİLGİ KOMUTLARI (!ip VE !map) ---
+    // --- SUNUCU BİLGİ KOMUTLARI (!ip, !map, !site) ---
     if (content === '!ip') {
         return message.reply('🎮 **CraftRiva Sunucu IP Adresi:** `oyna.craftriva.com`');
     }
 
     if (content === '!map') {
         return message.reply('🗺️ **CraftRiva Harita Linki:** http://178.63.186.223:25685/#towny:2431:0:-909:3375:0:0:0:0:perspective');
+    }
+
+    if (content === '!site') {
+        return message.reply('🌐 **CraftRiva Web Sitesi:** https://craftriva.com/');
     }
 
     // --- DESTEK PANELİ KURULUMU ---
