@@ -4,7 +4,7 @@ const http = require('http');
 // Render Uptime Web Sunucusu
 const server = http.createServer((req, res) => {
     res.writeHead(200, { 'Content-Type': 'text/plain' });
-    res.end('CraftRiva Bot Aktif!');
+    res.end('OK');
 });
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
