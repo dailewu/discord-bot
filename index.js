@@ -1,3 +1,78 @@
+const { 
+    Client, 
+    GatewayIntentBits, 
+    Partials, 
+    EmbedBuilder, 
+    ActionRowBuilder, 
+    ButtonBuilder, 
+    ButtonStyle, 
+    PermissionFlagsBits 
+} = require('discord.js');
+const http = require('http');
+
+// Render 7/24 Uptime için basit web sunucusu
+http.createServer((req, res) => {
+    res.write("CraftRiva Bot Aktif!");
+    res.end();
+}).listen(process.env.PORT || 3000);
+
+const client = new Client({
+    intents: [
+        GatewayIntentBits.Guilds,
+        GatewayIntentBits.GuildMessages,
+        GatewayIntentBits.MessageContent,
+        GatewayIntentBits.GuildMembers,
+        GatewayIntentBits.GuildInvites
+    ],
+    partials: [Partials.Message, Partials.Channel, Partials.Reaction]
+});
+
+// Veri depolama (Hafıza)
+const userInvites = new Map();
+const invitesCache = new Map();
+const spamMap = new Map();
+const giveaways = new Map();
+
+const MAX_SAME_MESSAGES = 4;
+
+client.on('ready', async () => {
+    console.log(`🤖 ${client.user.tag} olarak giriş yapıldı ve aktif!`);
+    
+    // Davetleri önbelleğe al
+    client.guilds.cache.forEach(async (guild) => {
+        try {
+            const firstInvites = await guild.invites.fetch();
+            invitesCache.set(guild.id, new Map(firstInvites.map((invite) => [invite.code, invite.uses])));
+        } catch (err) {
+            console.log(`Davetler çekilemedi (${guild.name}):`, err.message);
+        }
+    });
+});
+
+// Yeni Üye Gelince (Otomatik Rol & Davet Takibi)
+client.on('guildMemberAdd', async (member) => {
+    try {
+        const role = member.guild.roles.cache.find(r => r.name === 'Üye');
+        if (role) await member.roles.add(role);
+    } catch (err) {
+        console.error('Otomatik rol verilemedi:', err.message);
+    }
+
+    try {
+        const newInvites = await member.guild.invites.fetch();
+        const oldInvites = invitesCache.get(member.guild.id);
+        const invite = newInvites.find(i => oldInvites.has(i.code) && oldInvites.get(i.code) < i.uses);
+
+        if (invite && invite.inviter) {
+            const currentCount = userInvites.get(invite.inviter.id) || 0;
+            userInvites.set(invite.inviter.id, currentCount + 1);
+        }
+        invitesCache.set(member.guild.id, new Map(newInvites.map((inv) => [inv.code, inv.uses])));
+    } catch (err) {
+        console.error('Davet güncellenirken hata oluştu:', err.message);
+    }
+});
+
 // Komut ve Spam Dinleyicisi
 client.on('messageCreate', async (message) => {
     if (message.author.bot || !message.guild) return;
@@ -17,7 +92,6 @@ client.on('messageCreate', async (message) => {
         if (userData) {
             const { lastMessage, count } = userData;
 
-            // Zaman sınırı yok: Kullanıcı başka bir mesaj yazmadığı sürece aynı mesajları sayar
             if (lastMessage === rawContent) {
                 const newCount = count + 1;
 
@@ -34,32 +108,16 @@ client.on('messageCreate', async (message) => {
                         console.error('Spam mesajı silinirken hata oluştu:', err.message);
                     }
 
-                    // Sayacı 4'te tutarak sonraki aynı mesajların da silinmesini sağla
-                    spamMap.set(userId, {
-                        lastMessage: rawContent,
-                        count: newCount
-                    });
-                    
-                    return; // Spam tespit edildiği için altındaki komutlar çalışmasın
+                    spamMap.set(userId, { lastMessage: rawContent, count: newCount });
+                    return; 
                 } else {
-                    spamMap.set(userId, {
-                        lastMessage: rawContent,
-                        count: newCount
-                    });
+                    spamMap.set(userId, { lastMessage: rawContent, count: newCount });
                 }
             } else {
-                // Mesaj içeriği değiştiyse sayacı sıfırla
-                spamMap.set(userId, {
-                    lastMessage: rawContent,
-                    count: 1
-                });
+                spamMap.set(userId, { lastMessage: rawContent, count: 1 });
             }
         } else {
-            // İlk mesaj
-            spamMap.set(userId, {
-                lastMessage: rawContent,
-                count: 1
-            });
+            spamMap.set(userId, { lastMessage: rawContent, count: 1 });
         }
     }
     // ==========================================
@@ -178,7 +236,7 @@ client.on('messageCreate', async (message) => {
         if (timeInput.endsWith('m')) msTime = parseInt(timeInput) * 60 * 1000;
         else if (timeInput.endsWith('h')) msTime = parseInt(timeInput) * 60 * 60 * 1000;
         else if (timeInput.endsWith('d')) msTime = parseInt(timeInput) * 24 * 60 * 60 * 1000;
-        else return message.reply('Geçersiz süre formatı! Dakika için `m`, saat için `h`, gün için `d` kullanın. (Örn: 30m, 2h, 1d)');
+        else return message.reply('Geçersiz süre formatı! Dakika için `m`, saat için `h`, gün için `d` kullanın.');
 
         const endTime = Date.now() + msTime;
 
@@ -231,3 +289,170 @@ client.on('messageCreate', async (message) => {
         rerollGiveaway(msgId, message);
     }
 });
+
+// Buttolar ve Etkileşimler (Ticket & Çekiliş)
+client.on('interactionCreate', async (interaction) => {
+    if (!interaction.isButton()) return;
+
+    // --- DESTEK TALEBİ BUTONLARI ---
+    if (interaction.customId.startsWith('ticket_')) {
+        const action = interaction.customId.replace('ticket_', '');
+
+        if (action === 'confirm_close') {
+            await interaction.reply({ content: '🔒 Destek talebi onaylandı. Kanal 5 saniye içinde siliniyor...', ephemeral: true });
+            setTimeout(() => {
+                interaction.channel.delete().catch(() => {});
+            }, 5000);
+            return;
+        }
+
+        if (action === 'cancel_close') {
+            await interaction.message.delete().catch(() => {});
+            return interaction.reply({ content: '❌ Kapatma işlemi iptal edildi.', ephemeral: true });
+        }
+
+        // Kategori isimleri
+        const categoryMap = {
+            'ceza-itiraz': 'Ceza İtirazı',
+            'hile-bildirim': 'Hile Bildirimi',
+            'genel-destek': 'Genel Destek',
+            'odeme-sorunlari': 'Ödeme Sorunları',
+            'yetkili-sikayet': 'Yetkili Şikayeti',
+            'bug-bildirimi': 'Hata-Bug Bildirimi',
+            'klan-destegi': 'Klan Desteği'
+        };
+
+        const categoryName = categoryMap[action] || 'Destek';
+        const channelName = `${action}-${interaction.user.username.toLowerCase().replace(/[^a-z0-9]/g, '')}`;
+
+        const existingChannel = interaction.guild.channels.cache.find(c => c.name === channelName);
+        if (existingChannel) {
+            return interaction.reply({ content: `⚠️ Zaten açık bir destek talebiniz bulunuyor: ${existingChannel}`, ephemeral: true });
+        }
+
+        try {
+            const ticketChannel = await interaction.guild.channels.create({
+                name: channelName,
+                type: 0, // GUILD_TEXT
+                permissionOverwrites: [
+                    {
+                        id: interaction.guild.id,
+                        deny: [PermissionFlagsBits.ViewChannel]
+                    },
+                    {
+                        id: interaction.user.id,
+                        allow: [
+                            PermissionFlagsBits.ViewChannel,
+                            PermissionFlagsBits.SendMessages,
+                            PermissionFlagsBits.AttachFiles,
+                            PermissionFlagsBits.EmbedLinks
+                        ]
+                    }
+                ]
+            });
+
+            const welcomeEmbed = new EmbedBuilder()
+                .setTitle(`🎫 ${categoryName} Talebi`)
+                .setDescription(
+                    `Merhaba ${interaction.user}, destek talebiniz başarıyla oluşturuldu!\n\n` +
+                    `📌 **Kategori:** ${categoryName}\n` +
+                    `Lütfen sorununuzu, kullanıcı adınızı ve varsa ekran görüntülerinizi buraya yazın. Yetkililerimiz en kısa sürede ilgilenecektir.\n\n` +
+                    `*Talebi kapatmak için ` + '`!kapat`' + ` yazabilirsiniz.*`
+                )
+                .setColor('#38B6FF')
+                .setFooter({ text: 'CraftRiva Destek Sistemi' });
+
+            await ticketChannel.send({ content: `${interaction.user}`, embeds: [welcomeEmbed] });
+            await interaction.reply({ content: `✅ Destek talebiniz oluşturuldu: ${ticketChannel}`, ephemeral: true });
+        } catch (error) {
+            console.error('Kanal oluşturma hatası:', error);
+            await interaction.reply({ content: '❌ Destek kanalı oluşturulurken bir hata oluştu! Lütfen bot yetkilerini kontrol edin.', ephemeral: true });
+        }
+    }
+
+    // --- ÇEKİLİŞ BUTONU ---
+    if (interaction.customId === 'giveaway_join') {
+        const giveawayData = giveaways.get(interaction.message.id);
+        if (!giveawayData || giveawayData.ended) {
+            return interaction.reply({ content: '❌ Bu çekiliş sona ermiş!', ephemeral: true });
+        }
+
+        if (giveawayData.participants.has(interaction.user.id)) {
+            giveawayData.participants.delete(interaction.user.id);
+            await interaction.reply({ content: '❌ Çekilişten katılımınızı geri çektiniz.', ephemeral: true });
+        } else {
+            giveawayData.participants.add(interaction.user.id);
+            await interaction.reply({ content: '🎉 Çekilişe başarıyla katıldınız! Bol şans.', ephemeral: true });
+        }
+
+        const count = giveawayData.participants.size;
+        const row = new ActionRowBuilder().addComponents(
+            new ButtonBuilder()
+                .setCustomId('giveaway_join')
+                .setLabel(`Katıl (${count})`)
+                .setEmoji('🎉')
+                .setStyle(ButtonStyle.Primary)
+        );
+
+        await interaction.message.edit({ components: [row] }).catch(() => {});
+    }
+});
+
+// Çekiliş Bitirme Fonksiyonu
+async function endGiveaway(messageId, commandMsg = null) {
+    const data = giveaways.get(messageId);
+    if (!data || data.ended) return;
+
+    data.ended = true;
+
+    try {
+        const channel = await client.channels.fetch(data.channelId);
+        const giveawayMsg = await channel.messages.fetch(data.messageId);
+
+        const participantsArray = Array.from(data.participants);
+
+        if (participantsArray.length === 0) {
+            const endedEmbed = EmbedBuilder.from(giveawayMsg.embeds[0])
+                .setDescription(`⌛ **Bitiş:** Sona Erdi!\n👑 **Kazanan:** Yeterli katılım olmadı.\n👤 **Düzenleyen:** <@${data.guildId}>`)
+                .setColor('#FF0000');
+
+            await giveawayMsg.edit({ embeds: [endedEmbed], components: [] });
+            return channel.send(`🎉 **${data.prize}** çekilişi sona erdi ancak yeterli katılım olmadı.`);
+        }
+
+        const winners = [];
+        const winnerCount = Math.min(data.winnerCount, participantsArray.length);
+
+        for (let i = 0; i < winnerCount; i++) {
+            const randomIndex = Math.floor(Math.random() * participantsArray.length);
+            winners.push(participantsArray.splice(randomIndex, 1)[0]);
+        }
+
+        const winnerMentions = winners.map(id => `<@${id}>`).join(', ');
+
+        const endedEmbed = EmbedBuilder.from(giveawayMsg.embeds[0])
+            .setDescription(`⌛ **Bitiş:** Sona Erdi!\n👑 **Kazanan(lar):** ${winnerMentions}`)
+            .setColor('#2ECC71');
+
+        await giveawayMsg.edit({ embeds: [endedEmbed], components: [] });
+        await channel.send(`🎉 Tebrikler ${winnerMentions}! **${data.prize}** çekilişini kazandınız!`);
+    } catch (err) {
+        console.error('Çekiliş bitirilirken hata:', err.message);
+        if (commandMsg) commandMsg.reply('Çekiliş bitirilirken bir hata oluştu. Mesaj ID\'sini kontrol edin.');
+    }
+}
+
+// Çekiliş Yeniden Seçme Fonksiyonu
+async function rerollGiveaway(messageId, commandMsg) {
+    const data = giveaways.get(messageId);
+    if (!data) return commandMsg.reply('Bu ID ile kayıtlı bir çekiliş bulunamadı.');
+
+    const participantsArray = Array.from(data.participants);
+    if (participantsArray.length === 0) return commandMsg.reply('Katılımcı bulunmadığı için yeni kazanan seçilemiyor.');
+
+    const newWinner = participantsArray[Math.floor(Math.random() * participantsArray.length)];
+    commandMsg.channel.send(`🎉 Yeni kazanan seçildi! Tebrikler <@${newWinner}>, **${data.prize}** çekilişini kazandın!`);
+}
+
+// Bot Girişi
+client.login(process.env.TOKEN);
