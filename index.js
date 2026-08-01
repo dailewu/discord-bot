@@ -1,197 +1,27 @@
-const { Client, GatewayIntentBits, ActionRowBuilder, ButtonBuilder, ButtonStyle, ChannelType, PermissionFlagsBits, EmbedBuilder, MessageFlags, Collection } = require('discord.js');
-const http = require('http');
-
-// Render Uptime Web Sunucusu
-const server = http.createServer((req, res) => {
-    res.writeHead(200, { 'Content-Type': 'text/plain' });
-    res.end('OK');
-});
-const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => {
-    console.log(`Uptime portu (${PORT}) hazır.`);
-});
-
-const client = new Client({
-    intents: [
-        GatewayIntentBits.Guilds,
-        GatewayIntentBits.GuildMessages,
-        GatewayIntentBits.MessageContent,
-        GatewayIntentBits.GuildMessageReactions,
-        GatewayIntentBits.GuildMembers,
-        GatewayIntentBits.GuildInvites
-    ]
-});
-
-// Davet Verilerini Önbellekte Tutma Maps
-const invitesCache = new Collection(); 
-const userInvites = new Map(); 
-const memberInviter = new Map(); 
-
-// Çekiliş Verilerini Tutma
-const giveaways = new Map();
-
-// --- SPAM KORUMASI VERİ YAPISI ---
-const spamMap = new Map();
-const MAX_SAME_MESSAGES = 4; // 4. ve üstü aynı mesaj silinecek
-const SPAM_TIME_LIMIT = 5000; // 5 saniyelik zaman penceresi
-
-// Botun Çökmesini Engelleyen Hata Yakalayıcılar
-process.on('unhandledRejection', error => {
-    console.error('Yakalanamayan Hata (Unhandled Rejection):', error);
-});
-
-process.on('uncaughtException', error => {
-    console.error('Yakalanamayan İstisna (Uncaught Exception):', error);
-});
-
-// Bot Hazır Olduğunda Davetleri Önbelleğe Al
-client.once('ready', async () => {
-    console.log(`Bot başarıyla giriş yaptı: ${client.user.tag}`);
-
-    client.guilds.cache.forEach(async (guild) => {
-        try {
-            const firstInvites = await guild.invites.fetch();
-            const codeUses = new Collection();
-            firstInvites.forEach((inv) => codeUses.set(inv.code, inv.uses));
-            invitesCache.set(guild.id, codeUses);
-        } catch (err) {
-            console.log(`Davetler çekilirken hata (${guild.name}):`, err.message);
-        }
-    });
-});
-
-// Yeni Davet Oluşturulduğunda Önbelleği Güncelle
-client.on('inviteCreate', async (invite) => {
-    const guildInvites = invitesCache.get(invite.guild.id) || new Collection();
-    guildInvites.set(invite.code, invite.uses);
-    invitesCache.set(invite.guild.id, guildInvites);
-});
-
-// Davet Silindiğinde Önbelleği Güncelle
-client.on('inviteDelete', async (invite) => {
-    const guildInvites = invitesCache.get(invite.guild.id);
-    if (guildInvites) {
-        guildInvites.delete(invite.code);
-    }
-});
-
-// --- OTOMATİK ROL VE DAVET TAKİBİ (GİRİŞ) ---
-client.on('guildMemberAdd', async (member) => {
-    try {
-        // 1. Otomatik Rol Verme
-        const roleName = 'Üye'; 
-        const role = member.guild.roles.cache.find(r => r.name === roleName);
-        if (role) await member.roles.add(role).catch(() => {});
-
-        // 2. Davet Takibi
-        const newInvites = await member.guild.invites.fetch();
-        const oldInvites = invitesCache.get(member.guild.id) || new Collection();
-        
-        const invite = newInvites.find((i) => i.uses > (oldInvites.get(i.code) || 0));
-        
-        const codeUses = new Collection();
-        newInvites.forEach((inv) => codeUses.set(inv.code, inv.uses));
-        invitesCache.set(member.guild.id, codeUses);
-
-        // Belirtilen Davet Kanalı
-        const inviteChannel = member.guild.channels.cache.find(c => c.name === '✉️┃invite-kanalı' || c.name === 'invite-kanalı');
-
-        if (invite) {
-            const inviter = invite.inviter;
-            if (inviter) {
-                const currentCount = userInvites.get(inviter.id) || 0;
-                const newCount = currentCount + 1;
-                userInvites.set(inviter.id, newCount);
-
-                memberInviter.set(member.id, inviter.id);
-
-                if (inviteChannel) {
-                    const embed = new EmbedBuilder()
-                        .setTitle('📥 Yeni Üye Katıldı!')
-                        .setDescription(`Aramıza hoş geldin <@${member.id}>!\n\n👤 **Davet Eden:** <@${inviter.id}>\n📊 **Toplam Davet Sayısı:** \`${newCount}\``)
-                        .setColor('#2ECC71')
-                        .setThumbnail(member.user.displayAvatarURL())
-                        .setTimestamp();
-
-                    inviteChannel.send({ embeds: [embed] }).catch(() => {});
-                }
-            }
-        } else {
-            if (inviteChannel) {
-                const embed = new EmbedBuilder()
-                    .setTitle('📥 Yeni Üye Katıldı!')
-                    .setDescription(`Aramıza hoş geldin <@${member.id}>!\n\n❓ **Davet Eden:** Bulunamadı (Özel URL veya Bot)`)
-                    .setColor('#3498DB')
-                    .setThumbnail(member.user.displayAvatarURL())
-                    .setTimestamp();
-
-                inviteChannel.send({ embeds: [embed] }).catch(() => {});
-            }
-        }
-    } catch (error) {
-        console.error('Giriş takibinde hata oluştu:', error);
-    }
-});
-
-// --- DAVET DÜŞÜRME TAKİBİ (ÇIKIŞ) ---
-client.on('guildMemberRemove', async (member) => {
-    try {
-        const inviterId = memberInviter.get(member.id);
-        const inviteChannel = member.guild.channels.cache.find(c => c.name === '✉️┃invite-kanalı' || c.name === 'invite-kanalı');
-
-        if (inviterId) {
-            const currentCount = userInvites.get(inviterId) || 0;
-            const newCount = Math.max(0, currentCount - 1);
-            userInvites.set(inviterId, newCount);
-
-            memberInviter.delete(member.id);
-
-            if (inviteChannel) {
-                const embed = new EmbedBuilder()
-                    .setTitle('📤 Üye Ayrıldı')
-                    .setDescription(`**${member.user.tag}** sunucudan ayrıldı.\n\n👤 **Davet Eden:** <@${inviterId}>\n📉 **Güncel Davet Sayısı:** \`${newCount}\``)
-                    .setColor('#E74C3C')
-                    .setTimestamp();
-
-                inviteChannel.send({ embeds: [embed] }).catch(() => {});
-            }
-        } else {
-            if (inviteChannel) {
-                const embed = new EmbedBuilder()
-                    .setTitle('📤 Üye Ayrıldı')
-                    .setDescription(`**${member.user.tag}** sunucudan ayrıldı.`)
-                    .setColor('#95A5A6')
-                    .setTimestamp();
-
-                inviteChannel.send({ embeds: [embed] }).catch(() => {});
-            }
-        }
-    } catch (error) {
-        console.error('Çıkış takibinde hata oluştu:', error);
-    }
-});
-
-// Komut Dinleyicisi
+// Komut ve Spam Dinleyicisi
 client.on('messageCreate', async (message) => {
     if (message.author.bot || !message.guild) return;
 
     // ==========================================
-    // --- SPAM KORUMASI SİSTEMİ ---
+    // --- SADECE YÖNETİCİ MUAFİYETLİ SPAM KORUMASI ---
     // ==========================================
     const userId = message.author.id;
-    const rawContent = message.content.trim();
+    const rawContent = message.content.trim().toLowerCase();
 
-    if (rawContent) {
-        const now = Date.now();
+    // Sadece Yönetici yetkisine sahip kullanıcıları muaf tut
+    const isExempt = message.member.permissions.has(PermissionFlagsBits.Administrator);
+
+    if (rawContent && !isExempt) {
         const userData = spamMap.get(userId);
 
         if (userData) {
-            const { lastMessage, count, lastTimestamp } = userData;
+            const { lastMessage, count } = userData;
 
-            if (lastMessage === rawContent && (now - lastTimestamp) < SPAM_TIME_LIMIT) {
+            // Zaman sınırı yok: Kullanıcı başka bir mesaj yazmadığı sürece aynı mesajları sayar
+            if (lastMessage === rawContent) {
                 const newCount = count + 1;
 
-                if (newCount >= MAX_SAME_MESSAGES) {
+                if (newCount >= MAX_SAME_MESSAGES) { // 4 ve üzeri aynı mesaj
                     try {
                         await message.delete();
                         
@@ -204,33 +34,31 @@ client.on('messageCreate', async (message) => {
                         console.error('Spam mesajı silinirken hata oluştu:', err.message);
                     }
 
+                    // Sayacı 4'te tutarak sonraki aynı mesajların da silinmesini sağla
                     spamMap.set(userId, {
                         lastMessage: rawContent,
-                        count: newCount,
-                        lastTimestamp: now
+                        count: newCount
                     });
                     
-                    // Spam tespit edildiği için komut işlemlerine geçilmesin
-                    return;
+                    return; // Spam tespit edildiği için altındaki komutlar çalışmasın
                 } else {
                     spamMap.set(userId, {
                         lastMessage: rawContent,
-                        count: newCount,
-                        lastTimestamp: now
+                        count: newCount
                     });
                 }
             } else {
+                // Mesaj içeriği değiştiyse sayacı sıfırla
                 spamMap.set(userId, {
                     lastMessage: rawContent,
-                    count: 1,
-                    lastTimestamp: now
+                    count: 1
                 });
             }
         } else {
+            // İlk mesaj
             spamMap.set(userId, {
                 lastMessage: rawContent,
-                count: 1,
-                lastTimestamp: now
+                count: 1
             });
         }
     }
@@ -403,176 +231,3 @@ client.on('messageCreate', async (message) => {
         rerollGiveaway(msgId, message);
     }
 });
-
-// Buton Etkileşimleri
-client.on('interactionCreate', async (interaction) => {
-    if (!interaction.isButton()) return;
-
-    try {
-        if (interaction.customId === 'giveaway_join') {
-            const giveaway = giveaways.get(interaction.message.id);
-            if (!giveaway || giveaway.ended) {
-                return interaction.reply({ content: 'Bu çekiliş sona ermiş!', flags: MessageFlags.Ephemeral }).catch(() => {});
-            }
-
-            const userId = interaction.user.id;
-            if (giveaway.participants.has(userId)) {
-                giveaway.participants.delete(userId);
-                await interaction.reply({ content: 'Çekilişten katılımınızı çektiniz.', flags: MessageFlags.Ephemeral }).catch(() => {});
-            } else {
-                giveaway.participants.add(userId);
-                await interaction.reply({ content: 'Çekilişe başarıyla katıldınız! 🎉', flags: MessageFlags.Ephemeral }).catch(() => {});
-            }
-
-            const updatedRow = new ActionRowBuilder().addComponents(
-                new ButtonBuilder()
-                    .setCustomId('giveaway_join')
-                    .setLabel(`Katıl (${giveaway.participants.size})`)
-                    .setEmoji('🎉')
-                    .setStyle(ButtonStyle.Primary)
-            );
-
-            await interaction.message.edit({ components: [updatedRow] }).catch(() => {});
-        }
-
-        // --- BİLET OLUŞTURMA İŞLEMİ ---
-        if (interaction.customId.startsWith('ticket_') && !['ticket_confirm_close', 'ticket_cancel_close'].includes(interaction.customId)) {
-            const secim = interaction.customId.replace('ticket_', '');
-            const guild = interaction.guild;
-            const channelName = `${secim}-${interaction.user.username}`;
-
-            const existingChannel = guild.channels.cache.find(c => c.name.toLowerCase() === channelName.toLowerCase());
-            if (existingChannel) {
-                return interaction.reply({ content: `Zaten bu kategoride açık bir talebiniz bulunuyor: ${existingChannel}`, flags: MessageFlags.Ephemeral }).catch(() => {});
-            }
-
-            const kategoriIsimleri = {
-                'ceza-itiraz': 'Ceza İtirazı ⚖️',
-                'hile-bildirim': 'Hile Bildirimi ⚠️',
-                'genel-destek': 'Genel Destek 📩',
-                'odeme-sorunlari': 'Ödeme Sorunları 💳',
-                'yetkili-sikayet': 'Yetkili Şikayeti 🚨',
-                'bug-bildirimi': 'Hata-Bug Bildirimi 🛠️',
-                'klan-destegi': 'Klan Desteği 📝'
-            };
-
-            const secilenIsim = kategoriIsimleri[secim] || 'Destek';
-
-            const supportRole = guild.roles.cache.find(r => r.name === 'Destek Yetkilisi');
-
-            const permissionOverwrites = [
-                { id: guild.id, deny: [PermissionFlagsBits.ViewChannel] },
-                { id: interaction.user.id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory] },
-            ];
-
-            if (supportRole) {
-                permissionOverwrites.push({
-                    id: supportRole.id,
-                    allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory]
-                });
-            }
-
-            const ticketChannel = await guild.channels.create({
-                name: channelName,
-                type: ChannelType.GuildText,
-                permissionOverwrites: permissionOverwrites,
-            });
-
-            const ticketEmbed = new EmbedBuilder()
-                .setTitle(`${secilenIsim} Talebi`)
-                .setDescription(`Merhaba <@${interaction.user.id}>, talebiniz **${secilenIsim}** kategorisinde oluşturuldu.\n\nLütfen konunuzla ilgili tüm detayları ve varsa kanıtlarınızı buraya yazın. Yetkili ekibimiz en kısa sürede ilgilenecektir.`)
-                .setColor('#38B6FF');
-
-            const mentionText = supportRole ? `<@${interaction.user.id}> | <@&${supportRole.id}>` : `<@${interaction.user.id}>`;
-
-            await ticketChannel.send({ content: mentionText, embeds: [ticketEmbed] });
-            await interaction.reply({ content: `Destek talebiniz oluşturuldu: ${ticketChannel}`, flags: MessageFlags.Ephemeral }).catch(() => {});
-        }
-
-        // --- KANALI KAPATMA ONAY BUTONLARI ---
-        if (interaction.customId === 'ticket_confirm_close') {
-            await interaction.reply('🔒 Destek talebi onaylandı, kanal 5 saniye içinde siliniyor...').catch(() => {});
-            setTimeout(() => {
-                interaction.channel.delete().catch(() => {});
-            }, 5000);
-        }
-
-        if (interaction.customId === 'ticket_cancel_close') {
-            await interaction.message.delete().catch(() => {});
-            await interaction.reply({ content: 'Kapatma işlemi iptal edildi.', flags: MessageFlags.Ephemeral }).catch(() => {});
-        }
-    } catch (err) {
-        console.error('Etkileşim sırasında hata oluştu:', err);
-    }
-});
-
-async function endGiveaway(messageId, commandMsg = null) {
-    const giveaway = giveaways.get(messageId);
-    if (!giveaway || giveaway.ended) {
-        if (commandMsg) commandMsg.reply('Çekiliş bulunamadı ya da zaten sonlandırılmış.').catch(() => {});
-        return;
-    }
-
-    giveaway.ended = true;
-
-    try {
-        const channel = await client.channels.fetch(giveaway.channelId);
-        const giveawayMsg = await channel.messages.fetch(giveaway.messageId);
-
-        const winners = [];
-        const participantArray = Array.from(giveaway.participants);
-
-        if (participantArray.length > 0) {
-            const tempParticipants = [...participantArray];
-            for (let i = 0; i < Math.min(giveaway.winnerCount, participantArray.length); i++) {
-                const randomIndex = Math.floor(Math.random() * tempParticipants.length);
-                winners.push(tempParticipants.splice(randomIndex, 1)[0]);
-            }
-        }
-
-        const disabledRow = new ActionRowBuilder().addComponents(
-            new ButtonBuilder()
-                .setCustomId('giveaway_ended')
-                .setLabel(`Çekiliş Sona Erdi (${giveaway.participants.size})`)
-                .setEmoji('🔒')
-                .setStyle(ButtonStyle.Secondary)
-                .setDisabled(true)
-        );
-
-        let endEmbed;
-        if (winners.length > 0) {
-            const winnerMentions = winners.map(w => `<@${w}>`).join(', ');
-            endEmbed = new EmbedBuilder()
-                .setTitle(`🎉 ÇEKİLİŞ SONUÇLANDI: ${giveaway.prize}`)
-                .setDescription(`👑 **Kazananlar:** ${winnerMentions}\n👤 **Katılımcı Sayısı:** ${giveaway.participants.size}`)
-                .setColor('#2ECC71')
-                .setFooter({ text: 'CraftRiva Çekiliş Sistemi' });
-
-            await giveawayMsg.edit({ embeds: [endEmbed], components: [disabledRow] }).catch(() => {});
-            await channel.send(`Tebrikler ${winnerMentions}! **${giveaway.prize}** kazandınız! 🥳`).catch(() => {});
-        } else {
-            endEmbed = new EmbedBuilder()
-                .setTitle(`🎉 ÇEKİLİŞ İPTAL EDİLDİ: ${giveaway.prize}`)
-                .setDescription('Yeterli katılım olmadığı için kazanan seçilemedi.')
-                .setColor('#E74C3C')
-                .setFooter({ text: 'CraftRiva Çekiliş Sistemi' });
-
-            await giveawayMsg.edit({ embeds: [endEmbed], components: [disabledRow] }).catch(() => {});
-        }
-    } catch (e) {
-        console.error('Çekiliş sonlandırma hatası:', e);
-    }
-}
-
-async function rerollGiveaway(messageId, commandMsg) {
-    const giveaway = giveaways.get(messageId);
-    if (!giveaway) return commandMsg.reply('Çekiliş bulunamadı.').catch(() => {});
-
-    const participantArray = Array.from(giveaway.participants);
-    if (participantArray.length === 0) return commandMsg.reply('Bu çekilişte hiç katılımcı yoktu!').catch(() => {});
-
-    const randomWinner = participantArray[Math.floor(Math.random() * participantArray.length)];
-    commandMsg.channel.send(`🎲 **Yeni Kazanan (Yedek):** <@${randomWinner}>! Tebrikler! 🎉`).catch(() => {});
-}
-
-client.login(process.env.DISCORD_TOKEN);
