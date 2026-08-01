@@ -30,6 +30,11 @@ const memberInviter = new Map();
 // Çekiliş Verilerini Tutma
 const giveaways = new Map();
 
+// --- SPAM KORUMASI VERİ YAPISI ---
+const spamMap = new Map();
+const MAX_SAME_MESSAGES = 4; // 4. ve üstü aynı mesaj silinecek
+const SPAM_TIME_LIMIT = 5000; // 5 saniyelik zaman penceresi
+
 // Botun Çökmesini Engelleyen Hata Yakalayıcılar
 process.on('unhandledRejection', error => {
     console.error('Yakalanamayan Hata (Unhandled Rejection):', error);
@@ -168,7 +173,68 @@ client.on('guildMemberRemove', async (member) => {
 
 // Komut Dinleyicisi
 client.on('messageCreate', async (message) => {
-    if (message.author.bot) return;
+    if (message.author.bot || !message.guild) return;
+
+    // ==========================================
+    // --- SPAM KORUMASI SİSTEMİ ---
+    // ==========================================
+    const userId = message.author.id;
+    const rawContent = message.content.trim();
+
+    if (rawContent) {
+        const now = Date.now();
+        const userData = spamMap.get(userId);
+
+        if (userData) {
+            const { lastMessage, count, lastTimestamp } = userData;
+
+            if (lastMessage === rawContent && (now - lastTimestamp) < SPAM_TIME_LIMIT) {
+                const newCount = count + 1;
+
+                if (newCount >= MAX_SAME_MESSAGES) {
+                    try {
+                        await message.delete();
+                        
+                        const warning = await message.channel.send(
+                            `<@${userId}>, lütfen aynı mesajı üst üste tekrar gönderme!`
+                        );
+                        
+                        setTimeout(() => warning.delete().catch(() => {}), 4000);
+                    } catch (err) {
+                        console.error('Spam mesajı silinirken hata oluştu:', err.message);
+                    }
+
+                    spamMap.set(userId, {
+                        lastMessage: rawContent,
+                        count: newCount,
+                        lastTimestamp: now
+                    });
+                    
+                    // Spam tespit edildiği için komut işlemlerine geçilmesin
+                    return;
+                } else {
+                    spamMap.set(userId, {
+                        lastMessage: rawContent,
+                        count: newCount,
+                        lastTimestamp: now
+                    });
+                }
+            } else {
+                spamMap.set(userId, {
+                    lastMessage: rawContent,
+                    count: 1,
+                    lastTimestamp: now
+                });
+            }
+        } else {
+            spamMap.set(userId, {
+                lastMessage: rawContent,
+                count: 1,
+                lastTimestamp: now
+            });
+        }
+    }
+    // ==========================================
 
     const content = message.content.toLowerCase();
 
