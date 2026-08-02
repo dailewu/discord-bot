@@ -9,6 +9,7 @@ const {
     PermissionFlagsBits 
 } = require('discord.js');
 const http = require('http');
+const fs = require('fs');
 
 // ==========================================
 // --- RENDER 7/24 UPTIME SUNUCUSU ---
@@ -22,8 +23,36 @@ http.createServer((req, res) => {
 // --- AYARLAR ---
 // ==========================================
 const ANI_FOTOGRAFLAR_KANAL_ID = '1531645133177618641'; 
-const INVITE_KANAL_ID = 'BURAYA_INVITE_KANALININ_IDINI_YAZ'; // ✉️┃invite-kanalı kanalının ID'sini buraya yapıştır
-const MAX_SAME_MESSAGES = 4; // Spam koruması için üst üste atılabilecek maksimum mesaj
+const INVITE_KANAL_ID = '1532869484174381208'; // Belirttiğin invite kanalı ID'si
+const MAX_SAME_MESSAGES = 4;
+
+// ==========================================
+// --- VERİ DOSYASI YÖNETİMİ (KALIICI HAFIZA) ---
+// ==========================================
+const DATA_FILE = './invites.json';
+
+// Davetleri dosyadan okuma
+function loadInvites() {
+    try {
+        if (fs.existsSync(DATA_FILE)) {
+            const data = fs.readFileSync(DATA_FILE, 'utf8');
+            return new Map(JSON.parse(data));
+        }
+    } catch (err) {
+        console.error('Davet verileri okunurken hata:', err);
+    }
+    return new Map();
+}
+
+// Davetleri dosyaya kaydetme
+function saveInvites() {
+    try {
+        const data = JSON.stringify(Array.from(userInvites.entries()));
+        fs.writeFileSync(DATA_FILE, data, 'utf8');
+    } catch (err) {
+        console.error('Davet verileri kaydedilirken hata:', err);
+    }
+}
 
 // ==========================================
 // --- İNTENT VE VERİ DEPOLAMA ---
@@ -39,7 +68,7 @@ const client = new Client({
     partials: [Partials.Message, Partials.Channel, Partials.Reaction]
 });
 
-const userInvites = new Map();
+const userInvites = loadInvites(); // Kalıcı hafızadan yükle
 const invitesCache = new Map();
 const spamMap = new Map();
 const giveaways = new Map();
@@ -72,9 +101,14 @@ client.on('guildMemberAdd', async (member) => {
     }
 
     try {
-        const newInvites = await member.guild.invites.fetch();
         const oldInvites = invitesCache.get(member.guild.id);
-        const invite = newInvites.find(i => oldInvites && oldInvites.has(i.code) && oldInvites.get(i.code) < i.uses);
+        const newInvites = await member.guild.invites.fetch();
+        
+        let invite = null;
+        if (oldInvites) {
+            // Kullanım sayısı artan daveti bul
+            invite = newInvites.find(i => oldInvites.has(i.code) && oldInvites.get(i.code) < i.uses);
+        }
 
         let inviterText = "Bilinmiyor";
         let inviteCount = 0;
@@ -83,11 +117,13 @@ client.on('guildMemberAdd', async (member) => {
             inviterText = `<@${invite.inviter.id}>`;
             inviteCount = (userInvites.get(invite.inviter.id) || 0) + 1;
             userInvites.set(invite.inviter.id, inviteCount);
+            saveInvites(); // Dosyaya anında kaydet
         }
 
+        // Cache'i güncelle
         invitesCache.set(member.guild.id, new Map(newInvites.map((inv) => [inv.code, inv.uses])));
 
-        // Belirtilen invite kanalına görseldeki formatta log atma
+        // Belirtilen invite kanalına log atma
         const inviteChannel = member.guild.channels.cache.get(INVITE_KANAL_ID);
         if (inviteChannel) {
             const embed = new EmbedBuilder()
@@ -109,6 +145,12 @@ client.on('guildMemberAdd', async (member) => {
 // ==========================================
 client.on('guildMemberRemove', async (member) => {
     try {
+        // Üye çıktığında güncel davetleri de cache'e tazeleyelim ki sayaçlar şaşmasın
+        if (member.guild) {
+            const newInvites = await member.guild.invites.fetch();
+            invitesCache.set(member.guild.id, new Map(newInvites.map((inv) => [inv.code, inv.uses])));
+        }
+
         const inviteChannel = member.guild.channels.cache.get(INVITE_KANAL_ID);
         if (!inviteChannel) return;
 
@@ -191,7 +233,7 @@ client.on('messageCreate', async (message) => {
     // --- KOMUTLAR ---
     const content = message.content.toLowerCase();
 
-    if (content === '!davetim' || content === '!invites') {
+    if (content === '!davetim' || content === '!invites' || content === '!davetlerim') {
         const targetUser = message.mentions.users.first() || message.author;
         const count = userInvites.get(targetUser.id) || 0;
         const embed = new EmbedBuilder()
