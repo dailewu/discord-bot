@@ -35,6 +35,12 @@ const giveaways = new Map();
 
 const MAX_SAME_MESSAGES = 4;
 
+// ==========================================
+// --- AYARLAR ---
+// ==========================================
+const ANI_FOTOGRAFLAR_KANAL_ID = 'KANAL_ID_BURAYA_YAZIN'; // anı-fotoğraflar kanal ID'si
+// ==========================================
+
 client.on('ready', async () => {
     console.log(`🤖 ${client.user.tag} olarak giriş yapıldı ve aktif!`);
     
@@ -73,18 +79,39 @@ client.on('guildMemberAdd', async (member) => {
     }
 });
 
-// Komut ve Spam Dinleyicisi
+// Komut, Spam ve Fotoğraf Kanalı Dinleyicisi
 client.on('messageCreate', async (message) => {
     if (message.author.bot || !message.guild) return;
+
+    const isExempt = message.member.permissions.has(PermissionFlagsBits.Administrator);
+
+    // ==========================================
+    // --- ANI-FOTOĞRAFLAR KANAL SÜZGEÇ SİSTEMİ ---
+    // ==========================================
+    if (message.channel.id === ANI_FOTOGRAFLAR_KANAL_ID && !isExempt) {
+        const hasAttachment = message.attachments.size > 0;
+        const hasMediaLink = message.content.includes('http://') || message.content.includes('https://');
+
+        // Eğer mesajda dosya (resim/video) veya medya bağlantısı yoksa sil
+        if (!hasAttachment && !hasMediaLink) {
+            try {
+                await message.delete();
+                const warning = await message.channel.send(
+                    `<@${message.author.id}>, bu kanala sadece **resim veya video** gönderebilirsin!`
+                );
+                setTimeout(() => warning.delete().catch(() => {}), 4000);
+            } catch (err) {
+                console.error('Anı-fotoğraflar mesajı silinirken hata:', err.message);
+            }
+            return;
+        }
+    }
 
     // ==========================================
     // --- SADECE YÖNETİCİ MUAFİYETLİ SPAM KORUMASI ---
     // ==========================================
     const userId = message.author.id;
     const rawContent = message.content.trim().toLowerCase();
-
-    // Sadece Yönetici yetkisine sahip kullanıcıları muaf tut
-    const isExempt = message.member.permissions.has(PermissionFlagsBits.Administrator);
 
     if (rawContent && !isExempt) {
         const userData = spamMap.get(userId);
@@ -290,7 +317,7 @@ client.on('messageCreate', async (message) => {
     }
 });
 
-// Buttolar ve Etkileşimler (Ticket & Çekiliş)
+// Butonlar ve Etkileşimler (Ticket & Çekiliş)
 client.on('interactionCreate', async (interaction) => {
     if (!interaction.isButton()) return;
 
