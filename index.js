@@ -22,7 +22,7 @@ http.createServer((req, res) => {
 // --- AYARLAR ---
 // ==========================================
 const ANI_FOTOGRAFLAR_KANAL_ID = '1531645133177618641'; 
-const INVITE_KANAL_ID = '1531645133177618641'; // Davet loglarının atılacağı kanal ID'si (Görseldeki Kanal)
+const INVITE_KANAL_ID = 'BURAYA_INVITE_KANALININ_IDINI_YAZ'; // ✉️┃invite-kanalı kanalının ID'sini buraya yapıştır
 const MAX_SAME_MESSAGES = 4; // Spam koruması için üst üste atılabilecek maksimum mesaj
 
 // ==========================================
@@ -87,7 +87,7 @@ client.on('guildMemberAdd', async (member) => {
 
         invitesCache.set(member.guild.id, new Map(newInvites.map((inv) => [inv.code, inv.uses])));
 
-        // Görseldeki gibi davet kanalına log atma
+        // Belirtilen invite kanalına görseldeki formatta log atma
         const inviteChannel = member.guild.channels.cache.get(INVITE_KANAL_ID);
         if (inviteChannel) {
             const embed = new EmbedBuilder()
