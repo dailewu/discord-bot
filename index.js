@@ -83,37 +83,40 @@ client.on('guildMemberAdd', async (member) => {
 client.on('messageCreate', async (message) => {
     if (message.author.bot || !message.guild) return;
 
-    const isExempt = message.member.permissions.has(PermissionFlagsBits.Administrator);
+    // Sadece Yönetici (Administrator) yetkisi olanlar muaf tutulur
+    const isAdmin = message.member.permissions.has(PermissionFlagsBits.Administrator);
 
     // ==========================================
     // --- ANI-FOTOĞRAFLAR KANAL SÜZGEÇ SİSTEMİ ---
     // ==========================================
-    if (message.channel.id === ANI_FOTOGRAFLAR_KANAL_ID && !isExempt) {
-        const hasAttachment = message.attachments.size > 0;
-        const hasMediaLink = message.content.includes('http://') || message.content.includes('https://');
+    if (message.channel.id === ANI_FOTOGRAFLAR_KANAL_ID) {
+        if (!isAdmin) {
+            const hasAttachment = message.attachments.size > 0;
+            const hasEmbed = message.embeds.length > 0;
+            const hasMediaLink = /(https?:\/\/[^\s]+)/g.test(message.content);
 
-        // Eğer mesajda dosya (resim/video) veya medya bağlantısı yoksa sil
-        if (!hasAttachment && !hasMediaLink) {
-            try {
-                await message.delete();
-                const warning = await message.channel.send(
-                    `<@${message.author.id}>, bu kanala sadece **resim veya video** gönderebilirsin!`
-                );
-                setTimeout(() => warning.delete().catch(() => {}), 4000);
-            } catch (err) {
-                console.error('Anı-fotoğraflar mesajı silinirken hata:', err.message);
+            if (!hasAttachment && !hasEmbed && !hasMediaLink) {
+                try {
+                    await message.delete();
+                    const warning = await message.channel.send(
+                        `<@${message.author.id}>, bu kanala sadece **resim veya video** gönderebilirsin!`
+                    );
+                    setTimeout(() => warning.delete().catch(() => {}), 4000);
+                } catch (err) {
+                    console.error('Anı-fotoğraflar mesajı silinirken hata oluştu:', err.message);
+                }
+                return;
             }
-            return;
         }
     }
 
     // ==========================================
-    // --- SADECE YÖNETİCİ MUAFİYETLİ SPAM KORUMASI ---
+    // --- SPAM KORUMASI ---
     // ==========================================
     const userId = message.author.id;
     const rawContent = message.content.trim().toLowerCase();
 
-    if (rawContent && !isExempt) {
+    if (rawContent && !isAdmin) {
         const userData = spamMap.get(userId);
 
         if (userData) {
@@ -122,14 +125,12 @@ client.on('messageCreate', async (message) => {
             if (lastMessage === rawContent) {
                 const newCount = count + 1;
 
-                if (newCount >= MAX_SAME_MESSAGES) { // 4 ve üzeri aynı mesaj
+                if (newCount >= MAX_SAME_MESSAGES) {
                     try {
                         await message.delete();
-                        
                         const warning = await message.channel.send(
                             `<@${userId}>, lütfen aynı mesajı üst üste tekrar gönderme!`
                         );
-                        
                         setTimeout(() => warning.delete().catch(() => {}), 4000);
                     } catch (err) {
                         console.error('Spam mesajı silinirken hata oluştu:', err.message);
@@ -147,7 +148,6 @@ client.on('messageCreate', async (message) => {
             spamMap.set(userId, { lastMessage: rawContent, count: 1 });
         }
     }
-    // ==========================================
 
     const content = message.content.toLowerCase();
 
@@ -209,7 +209,7 @@ client.on('messageCreate', async (message) => {
 
     // --- DESTEK PANELİ KURULUMU ---
     if (message.content === '!destek-kur') {
-        if (!message.member.permissions.has(PermissionFlagsBits.Administrator)) {
+        if (!isAdmin) {
             return message.reply('Bu komutu kullanmak için **Yönetici** yetkisine sahip olmalısın!');
         }
 
@@ -244,7 +244,7 @@ client.on('messageCreate', async (message) => {
 
     // --- ÇEKİLİŞ KOMUTLARI ---
     if (message.content.startsWith('!çekiliş-başlat')) {
-        if (!message.member.permissions.has(PermissionFlagsBits.Administrator)) {
+        if (!isAdmin) {
             return message.reply('Çekiliş başlatmak için **Yönetici** yetkisine sahip olmalısın!');
         }
 
@@ -303,14 +303,14 @@ client.on('messageCreate', async (message) => {
     }
 
     if (message.content.startsWith('!çekiliş-bitir')) {
-        if (!message.member.permissions.has(PermissionFlagsBits.Administrator)) return;
+        if (!isAdmin) return;
         const msgId = message.content.split(' ')[1];
         if (!msgId) return message.reply('Lütfen bitirmek istediğiniz çekilişin Mesaj ID\'sini yazın.');
         endGiveaway(msgId, message);
     }
 
     if (message.content.startsWith('!çekiliş-yeniden')) {
-        if (!message.member.permissions.has(PermissionFlagsBits.Administrator)) return;
+        if (!isAdmin) return;
         const msgId = message.content.split(' ')[1];
         if (!msgId) return message.reply('Lütfen yeniden seçmek istediğiniz çekilişin Mesaj ID\'sini yazın.');
         rerollGiveaway(msgId, message);
@@ -338,7 +338,6 @@ client.on('interactionCreate', async (interaction) => {
             return interaction.reply({ content: '❌ Kapatma işlemi iptal edildi.', ephemeral: true });
         }
 
-        // Kategori isimleri
         const categoryMap = {
             'ceza-itiraz': 'Ceza İtirazı',
             'hile-bildirim': 'Hile Bildirimi',
@@ -360,7 +359,7 @@ client.on('interactionCreate', async (interaction) => {
         try {
             const ticketChannel = await interaction.guild.channels.create({
                 name: channelName,
-                type: 0, // GUILD_TEXT
+                type: 0,
                 permissionOverwrites: [
                     {
                         id: interaction.guild.id,
