@@ -22,6 +22,7 @@ http.createServer((req, res) => {
 // --- AYARLAR ---
 // ==========================================
 const ANI_FOTOGRAFLAR_KANAL_ID = '1531645133177618641'; 
+const INVITE_KANAL_ID = '1531645133177618641'; // Davet loglarının atılacağı kanal ID'si (Görseldeki Kanal)
 const MAX_SAME_MESSAGES = 4; // Spam koruması için üst üste atılabilecek maksimum mesaj
 
 // ==========================================
@@ -73,15 +74,53 @@ client.on('guildMemberAdd', async (member) => {
     try {
         const newInvites = await member.guild.invites.fetch();
         const oldInvites = invitesCache.get(member.guild.id);
-        const invite = newInvites.find(i => oldInvites.has(i.code) && oldInvites.get(i.code) < i.uses);
+        const invite = newInvites.find(i => oldInvites && oldInvites.has(i.code) && oldInvites.get(i.code) < i.uses);
+
+        let inviterText = "Bilinmiyor";
+        let inviteCount = 0;
 
         if (invite && invite.inviter) {
-            const currentCount = userInvites.get(invite.inviter.id) || 0;
-            userInvites.set(invite.inviter.id, currentCount + 1);
+            inviterText = `<@${invite.inviter.id}>`;
+            inviteCount = (userInvites.get(invite.inviter.id) || 0) + 1;
+            userInvites.set(invite.inviter.id, inviteCount);
         }
+
         invitesCache.set(member.guild.id, new Map(newInvites.map((inv) => [inv.code, inv.uses])));
+
+        // Görseldeki gibi davet kanalına log atma
+        const inviteChannel = member.guild.channels.cache.get(INVITE_KANAL_ID);
+        if (inviteChannel) {
+            const embed = new EmbedBuilder()
+                .setTitle('📥 Yeni Üye Katıldı!')
+                .setDescription(`Aramıza hoş geldin ${member}!\n\n📌 **Davet Eden:** ${inviterText}\n📊 **Toplam Davet Sayısı:** ${inviteCount}`)
+                .setColor('#2ECC71')
+                .setThumbnail(member.user.displayAvatarURL({ dynamic: true }))
+                .setTimestamp();
+
+            await inviteChannel.send({ embeds: [embed] });
+        }
     } catch (err) {
         console.error('Davet güncellenirken hata oluştu:', err.message);
+    }
+});
+
+// ==========================================
+// --- ÜYE AYRILDIĞINDA LOG ---
+// ==========================================
+client.on('guildMemberRemove', async (member) => {
+    try {
+        const inviteChannel = member.guild.channels.cache.get(INVITE_KANAL_ID);
+        if (!inviteChannel) return;
+
+        const embed = new EmbedBuilder()
+            .setTitle('📤 Üye Ayrıldı')
+            .setDescription(`**${member.user.tag}** sunucudan ayrıldı.`)
+            .setColor('#E74C3C')
+            .setTimestamp();
+
+        await inviteChannel.send({ embeds: [embed] });
+    } catch (err) {
+        console.error('Üye ayrılma logu gönderilemedi:', err.message);
     }
 });
 
@@ -176,7 +215,7 @@ client.on('messageCreate', async (message) => {
         const destekKategorileri = ['ceza-itiraz-', 'hile-bildirim-', 'genel-destek-', 'odeme-sorunlari-', 'yetkili-sikayet-', 'bug-bildirimi-', 'klan-destegi-'];
         const isTicketChannel = destekKategorileri.some(kategori => message.channel.name.startsWith(kategori));
 
-        if (!isTicketChannel) return message.reply('⚠️ Bu bu komut sadece açık olan destek talebi kanallarında kullanılabilir!').catch(() => {});
+        if (!isTicketChannel) return message.reply('⚠️ Bu komut sadece açık olan destek talebi kanallarında kullanılabilir!').catch(() => {});
 
         const confirmEmbed = new EmbedBuilder()
             .setTitle('🔒 Destek Talebi Kapatma Onayı')
@@ -325,7 +364,6 @@ client.on('interactionCreate', async (interaction) => {
                 ]
             });
 
-            // İstediğin yeni düzen (kapatma yazısı kaldırıldı)
             const welcomeEmbed = new EmbedBuilder()
                 .setTitle(`🎫 ${categoryName} Talebi`)
                 .setDescription(`Merhaba ${interaction.user}, destek talebiniz başarıyla oluşturuldu!\n\n📌 **Kategori:** ${categoryName}\n\nLütfen sorununuzu detaylı şekilde açıklayınız.\n\nYetkililerimiz en kısa sürede ilgilenecektir.`)
