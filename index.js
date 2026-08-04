@@ -23,7 +23,7 @@ http.createServer((req, res) => {
 // --- AYARLAR ---
 // ==========================================
 const ANI_FOTOGRAFLAR_KANAL_ID = '1531645133177618641'; 
-const INVITE_KANAL_ID = '1532869484174381208'; // Belirttiğin invite kanalı ID'si
+const INVITE_KANAL_ID = '1534343282996543639'; // Belirttiğin invite kanalı ID'si
 const MAX_SAME_MESSAGES = 4;
 
 // ==========================================
