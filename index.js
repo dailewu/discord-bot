@@ -254,8 +254,8 @@ client.on('messageCreate', async (message) => {
     }
 
     if (content === '!kapat') {
-        // medya- kategorisi buraya da eklendi
-        const destekKategorileri = ['ceza-itiraz-', 'hile-bildirim-', 'genel-destek-', 'odeme-sorunlari-', 'yetkili-sikayet-', 'bug-bildirimi-', 'klan-destegi-', 'medya-'];
+        // baglanti-sorunlari- kategorisi buraya da eklendi
+        const destekKategorileri = ['ceza-itiraz-', 'hile-bildirim-', 'genel-destek-', 'odeme-sorunlari-', 'yetkili-sikayet-', 'bug-bildirimi-', 'klan-destegi-', 'medya-', 'baglanti-sorunlari-'];
         const isTicketChannel = destekKategorileri.some(kategori => message.channel.name.startsWith(kategori));
 
         if (!isTicketChannel) return message.reply('⚠️ Bu komut sadece açık olan destek talebi kanallarında kullanılabilir!').catch(() => {});
@@ -290,11 +290,12 @@ client.on('messageCreate', async (message) => {
             new ButtonBuilder().setCustomId('ticket_yetkili-sikayet').setLabel('Yetkili Şikayeti').setEmoji('🚨').setStyle(ButtonStyle.Secondary)
         );
 
-        // Medya butonu 2. satıra (row2) eklendi
+        // Bağlantı Sorunları butonu 2. satıra (row2) eklendi
         const row2 = new ActionRowBuilder().addComponents(
             new ButtonBuilder().setCustomId('ticket_bug-bildirimi').setLabel('Hata-Bug Bildirimi').setEmoji('🛠️').setStyle(ButtonStyle.Secondary),
             new ButtonBuilder().setCustomId('ticket_klan-destegi').setLabel('Klan Desteği').setEmoji('📝').setStyle(ButtonStyle.Secondary),
-            new ButtonBuilder().setCustomId('ticket_medya').setLabel('Medya').setEmoji('🎥').setStyle(ButtonStyle.Secondary)
+            new ButtonBuilder().setCustomId('ticket_medya').setLabel('Medya').setEmoji('🎥').setStyle(ButtonStyle.Secondary),
+            new ButtonBuilder().setCustomId('ticket_baglanti-sorunlari').setLabel('Bağlantı Sorunları').setEmoji('🔌').setStyle(ButtonStyle.Secondary)
         );
 
         await message.channel.send({ embeds: [embed], components: [row1, row2] });
@@ -383,7 +384,7 @@ client.on('interactionCreate', async (interaction) => {
             return interaction.reply({ content: '❌ Kapatma işlemi iptal edildi.', ephemeral: true });
         }
 
-        // Medya kategorisi eklendi
+        // Bağlantı Sorunları kategorisi eklendi
         const categoryMap = {
             'ceza-itiraz': 'Ceza İtirazı',
             'hile-bildirim': 'Hile Bildirimi',
@@ -392,7 +393,8 @@ client.on('interactionCreate', async (interaction) => {
             'yetkili-sikayet': 'Yetkili Şikayeti',
             'bug-bildirimi': 'Hata-Bug Bildirimi',
             'klan-destegi': 'Klan Desteği',
-            'medya': 'Medya'
+            'medya': 'Medya',
+            'baglanti-sorunlari': 'Bağlantı Sorunları'
         };
 
         const categoryName = categoryMap[action] || 'Destek';
