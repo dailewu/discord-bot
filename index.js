@@ -106,7 +106,6 @@ client.on('guildMemberAdd', async (member) => {
         
         let invite = null;
         if (oldInvites) {
-            // Kullanım sayısı artan daveti bul
             invite = newInvites.find(i => oldInvites.has(i.code) && oldInvites.get(i.code) < i.uses);
         }
 
@@ -117,13 +116,11 @@ client.on('guildMemberAdd', async (member) => {
             inviterText = `<@${invite.inviter.id}>`;
             inviteCount = (userInvites.get(invite.inviter.id) || 0) + 1;
             userInvites.set(invite.inviter.id, inviteCount);
-            saveInvites(); // Dosyaya anında kaydet
+            saveInvites();
         }
 
-        // Cache'i güncelle
         invitesCache.set(member.guild.id, new Map(newInvites.map((inv) => [inv.code, inv.uses])));
 
-        // Belirtilen invite kanalına log atma
         const inviteChannel = member.guild.channels.cache.get(INVITE_KANAL_ID);
         if (inviteChannel) {
             const embed = new EmbedBuilder()
@@ -280,6 +277,28 @@ client.on('messageCreate', async (message) => {
         }
     }
 
+    // --- UNBLACKLIST KOMUTU (!unblacklist [kullanıcı_id]) - YÖNETİCİ ÖZEL ---
+    if (message.content.startsWith('!unblacklist')) {
+        if (!isAdmin) {
+            return message.reply('Bu komutu kullanmak için **Yönetici** yetkisine sahip olmalısın!');
+        }
+
+        const args = message.content.split(' ');
+        const targetId = args[1];
+
+        if (!targetId) {
+            return message.reply('Lütfen banı kaldırılacak kullanıcının **ID\'sini** girin! (Örnek: `!unblacklist 123456789012345678`)');
+        }
+
+        try {
+            await message.guild.members.unban(targetId, `Unblacklist komutu ile ${message.author.tag} tarafından kaldırıldı.`);
+            return message.reply(`🔓 ID'si belirtilen kullanıcının sunucudaki banı (blacklist) başarıyla kaldırıldı.`);
+        } catch (err) {
+            console.error('Unblacklist hatası:', err);
+            return message.reply('Ban kaldırılırken hata oluştu. ID\'nin doğru olduğundan ve kullanıcının gerçekten banlı olduğundan emin olun.');
+        }
+    }
+
     // --- MUTE / TIMEOUT KOMUTU (!mute [üye] [süre]) - YÖNETİCİ ÖZEL ---
     if (message.content.startsWith('!mute')) {
         if (!isAdmin) {
@@ -298,7 +317,7 @@ client.on('messageCreate', async (message) => {
         if (timeInput.endsWith('m')) msTime = parseInt(timeInput) * 60 * 1000;
         else if (timeInput.endsWith('h')) msTime = parseInt(timeInput) * 60 * 60 * 1000;
         else if (timeInput.endsWith('d')) msTime = parseInt(timeInput) * 24 * 60 * 60 * 1000;
-        else return message.reply('Geçersiz süre formatı! Dakika için `m`, saat için `h`, gün için `d` kullanın. (Örn: `!mute @Kullanici 10m`)');
+        else return message.reply('Geçersiz süre formatı! Dakika için `m`, saat için `h`, gün için `d` kullanın.');
 
         if (isNaN(msTime) || msTime <= 0) {
             return message.reply('Lütfen geçerli bir süre belirtin!');
@@ -310,6 +329,26 @@ client.on('messageCreate', async (message) => {
         } catch (err) {
             console.error('Mute timeout hatası:', err);
             return message.reply('Kullanıcıya zaman aşımı uygulanırken bir hata oluştu. Botun rol hiyerarşisini kontrol edin.');
+        }
+    }
+
+    // --- UNMUTE KOMUTU (!unmute [üye]) - YÖNETİCİ ÖZEL ---
+    if (message.content.startsWith('!unmute')) {
+        if (!isAdmin) {
+            return message.reply('Bu komutu kullanmak için **Yönetici** yetkisine sahip olmalısın!');
+        }
+
+        const targetMember = message.mentions.members.first() || message.guild.members.cache.get(message.content.split(' ')[1]);
+        if (!targetMember) {
+            return message.reply('Lütfen zaman aşımı kaldırılacak kullanıcıyı etiketleyin veya ID girin! (Örnek: `!unmute @Kullanici`)');
+        }
+
+        try {
+            await targetMember.timeout(null, `Unmute komutu ile ${message.author.tag} tarafından kaldırıldı.`);
+            return message.reply(`🔊 **${targetMember.user.tag}** adlı kullanıcının zaman aşımı (mute) kaldırıldı.`);
+        } catch (err) {
+            console.error('Unmute hatası:', err);
+            return message.reply('Zaman aşımı kaldırılırken bir hata oluştu. Kullanıcının zaten susturulduğundan emin olun.');
         }
     }
 
