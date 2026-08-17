@@ -233,6 +233,36 @@ client.on('messageCreate', async (message) => {
     // --- KOMUTLAR ---
     const content = message.content.toLowerCase();
 
+    // --- MESAJ SİLME KOMUTU (!sil [miktar]) ---
+    if (message.content.startsWith('!sil')) {
+        if (!message.member.permissions.has(PermissionFlagsBits.ManageMessages)) {
+            return message.reply('Bu komutu kullanmak için **Mesajları Yönet** yetkisine sahip olmalısın!');
+        }
+
+        const args = message.content.split(' ');
+        const amount = parseInt(args[1]);
+
+        if (isNaN(amount) || amount <= 0) {
+            return message.reply('Lütfen silinecek geçerli bir miktar belirt! (Örnek: `!sil 10`)');
+        }
+
+        if (amount > 100) {
+            return message.reply('Tek seferde en fazla 100 mesaj silebilirsin.');
+        }
+
+        try {
+            // Komut mesajını da dahil ederek silmek için amount + 1 yapıyoruz
+            await message.channel.bulkDelete(amount + 1, true);
+            
+            const reply = await message.channel.send(`Başarıyla **${amount}** adet mesaj silindi.`);
+            setTimeout(() => reply.delete().catch(() => {}), 3000);
+        } catch (error) {
+            console.error(error);
+            message.reply('Mesajlar silinirken bir hata oluştu. (14 günden eski mesajlar toplu silinemez!)');
+        }
+        return;
+    }
+
     if (content === '!davetim' || content === '!invites' || content === '!davetlerim') {
         const targetUser = message.mentions.users.first() || message.author;
         const count = userInvites.get(targetUser.id) || 0;
@@ -254,7 +284,6 @@ client.on('messageCreate', async (message) => {
     }
 
     if (content === '!kapat') {
-        // baglanti-sorunlari- kategorisi buraya da eklendi
         const destekKategorileri = ['ceza-itiraz-', 'hile-bildirim-', 'genel-destek-', 'odeme-sorunlari-', 'yetkili-sikayet-', 'bug-bildirimi-', 'klan-destegi-', 'medya-', 'baglanti-sorunlari-'];
         const isTicketChannel = destekKategorileri.some(kategori => message.channel.name.startsWith(kategori));
 
@@ -290,7 +319,6 @@ client.on('messageCreate', async (message) => {
             new ButtonBuilder().setCustomId('ticket_yetkili-sikayet').setLabel('Yetkili Şikayeti').setEmoji('🚨').setStyle(ButtonStyle.Secondary)
         );
 
-        // Bağlantı Sorunları butonu 2. satıra (row2) eklendi
         const row2 = new ActionRowBuilder().addComponents(
             new ButtonBuilder().setCustomId('ticket_bug-bildirimi').setLabel('Hata-Bug Bildirimi').setEmoji('🛠️').setStyle(ButtonStyle.Secondary),
             new ButtonBuilder().setCustomId('ticket_klan-destegi').setLabel('Klan Desteği').setEmoji('📝').setStyle(ButtonStyle.Secondary),
@@ -384,7 +412,6 @@ client.on('interactionCreate', async (interaction) => {
             return interaction.reply({ content: '❌ Kapatma işlemi iptal edildi.', ephemeral: true });
         }
 
-        // Bağlantı Sorunları kategorisi eklendi
         const categoryMap = {
             'ceza-itiraz': 'Ceza İtirazı',
             'hile-bildirim': 'Hile Bildirimi',
@@ -490,7 +517,7 @@ async function rerollGiveaway(messageId, commandMsg) {
     if (!data) return commandMsg.reply('Bu ID ile kayıtlı bir çekiliş bulunamadı.');
     
     const participantsArray = Array.from(data.participants);
-    if (participantsArray.length === 0) return commandMsg.reply('Katılımcı bulunmadığı için yeni kazanan seçilemiyor.');
+    if (participantsArray.length === 0) return commandMsg.reply('Katılımcı bulunamadığı için yeni kazanan seçilemiyor.');
 
     const newWinner = participantsArray[Math.floor(Math.random() * participantsArray.length)];
     commandMsg.channel.send(`🎉 Yeni kazanan seçildi! Tebrikler <@${newWinner}>, **${data.prize}** çekilişini kazandın!`);
