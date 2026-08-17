@@ -251,7 +251,6 @@ client.on('messageCreate', async (message) => {
         }
 
         try {
-            // Komut mesajını da dahil ederek silmek için amount + 1 yapıyoruz
             await message.channel.bulkDelete(amount + 1, true);
             
             const reply = await message.channel.send(`Başarıyla **${amount}** adet mesaj silindi.`);
