@@ -27,7 +27,7 @@ const INVITE_KANAL_ID = '1534343282996543639'; // Belirttiğin invite kanalı ID
 const MAX_SAME_MESSAGES = 4;
 
 // ==========================================
-// --- VERİ DOSYASI YÖNETİMİ (KALIICI HAFIZA) ---
+// --- VERİ DOSYASI YÖNETİMİ (KALICI HAFIZA) ---
 // ==========================================
 const DATA_FILE = './invites.json';
 
@@ -145,7 +145,6 @@ client.on('guildMemberAdd', async (member) => {
 // ==========================================
 client.on('guildMemberRemove', async (member) => {
     try {
-        // Üye çıktığında güncel davetleri de cache'e tazeleyelim ki sayaçlar şaşmasın
         if (member.guild) {
             const newInvites = await member.guild.invites.fetch();
             invitesCache.set(member.guild.id, new Map(newInvites.map((inv) => [inv.code, inv.uses])));
@@ -252,7 +251,6 @@ client.on('messageCreate', async (message) => {
 
         try {
             await message.channel.bulkDelete(amount + 1, true);
-            
             const reply = await message.channel.send(`Başarıyla **${amount}** adet mesaj silindi.`);
             setTimeout(() => reply.delete().catch(() => {}), 3000);
         } catch (error) {
@@ -260,6 +258,59 @@ client.on('messageCreate', async (message) => {
             message.reply('Mesajlar silinirken bir hata oluştu. (14 günden eski mesajlar toplu silinemez!)');
         }
         return;
+    }
+
+    // --- BLACKLIST KOMUTU (!blacklist [üye]) - YÖNETİCİ ÖZEL ---
+    if (message.content.startsWith('!blacklist')) {
+        if (!isAdmin) {
+            return message.reply('Bu komutu kullanmak için **Yönetici** yetkisine sahip olmalısın!');
+        }
+
+        const targetMember = message.mentions.members.first() || message.guild.members.cache.get(message.content.split(' ')[1]);
+        if (!targetMember) {
+            return message.reply('Lütfen banlanacak geçerli bir kullanıcı etiketleyin veya ID girin! (Örnek: `!blacklist @Kullanici`)');
+        }
+
+        try {
+            await targetMember.ban({ reason: `Blacklist komutu ile ${message.author.tag} tarafından yasaklandı.` });
+            return message.reply(`🔨 **${targetMember.user.tag}** sunucudan kalıcı olarak banlandı (Blacklist uygulandı).`);
+        } catch (err) {
+            console.error('Blacklist ban hatası:', err);
+            return message.reply('Kullanıcı banlanırken bir hata oluştu. Botun yetkisinin kullanıcının yetkisinden üstün olduğundan emin olun.');
+        }
+    }
+
+    // --- MUTE / TIMEOUT KOMUTU (!mute [üye] [süre]) - YÖNETİCİ ÖZEL ---
+    if (message.content.startsWith('!mute')) {
+        if (!isAdmin) {
+            return message.reply('Bu komutu kullanmak için **Yönetici** yetkisine sahip olmalısın!');
+        }
+
+        const args = message.content.split(' ').slice(1);
+        const targetMember = message.mentions.members.first() || message.guild.members.cache.get(args[0]);
+        const timeInput = args[1];
+
+        if (!targetMember || !timeInput) {
+            return message.reply('Kullanım: `!mute <@Kullanici> <süre(1m/1h/1d)>`');
+        }
+
+        let msTime = 0;
+        if (timeInput.endsWith('m')) msTime = parseInt(timeInput) * 60 * 1000;
+        else if (timeInput.endsWith('h')) msTime = parseInt(timeInput) * 60 * 60 * 1000;
+        else if (timeInput.endsWith('d')) msTime = parseInt(timeInput) * 24 * 60 * 60 * 1000;
+        else return message.reply('Geçersiz süre formatı! Dakika için `m`, saat için `h`, gün için `d` kullanın. (Örn: `!mute @Kullanici 10m`)');
+
+        if (isNaN(msTime) || msTime <= 0) {
+            return message.reply('Lütfen geçerli bir süre belirtin!');
+        }
+
+        try {
+            await targetMember.timeout(msTime, `Mute komutu ile ${message.author.tag} tarafından susturuldu.`);
+            return message.reply(`🔇 **${targetMember.user.tag}** adlı kullanıcıya **${timeInput}** süreyle zaman aşımı (mute) uygulandı.`);
+        } catch (err) {
+            console.error('Mute timeout hatası:', err);
+            return message.reply('Kullanıcıya zaman aşımı uygulanırken bir hata oluştu. Botun rol hiyerarşisini kontrol edin.');
+        }
     }
 
     if (content === '!davetim' || content === '!invites' || content === '!davetlerim') {
