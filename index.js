@@ -233,10 +233,10 @@ client.on('messageCreate', async (message) => {
     // --- KOMUTLAR ---
     const content = message.content.toLowerCase();
 
-    // --- MESAJ SİLME KOMUTU (!sil [miktar]) ---
+    // --- MESAJ SİLME KOMUTU (!sil [miktar]) - YÖNETİCİ ÖZEL ---
     if (message.content.startsWith('!sil')) {
-        if (!message.member.permissions.has(PermissionFlagsBits.ManageMessages)) {
-            return message.reply('Bu komutu kullanmak için **Mesajları Yönet** yetkisine sahip olmalısın!');
+        if (!isAdmin) {
+            return message.reply('Bu komutu kullanmak için **Yönetici** yetkisine sahip olmalısın!');
         }
 
         const args = message.content.split(' ');
@@ -377,14 +377,14 @@ client.on('messageCreate', async (message) => {
     }
 
     if (message.content.startsWith('!çekiliş-bitir')) {
-        if (!isAdmin) return;
+        if (!isAdmin) return message.reply('Çekiliş bitirmek için **Yönetici** yetkisine sahip olmalısın!');
         const msgId = message.content.split(' ')[1];
         if (!msgId) return message.reply('Lütfen bitirmek istediğiniz çekilişin Mesaj ID\'sini yazın.');
         endGiveaway(msgId, message);
     }
 
     if (message.content.startsWith('!çekiliş-yeniden')) {
-        if (!isAdmin) return;
+        if (!isAdmin) return message.reply('Yeni kazanan seçmek için **Yönetici** yetkisine sahip olmalısın!');
         const msgId = message.content.split(' ')[1];
         if (!msgId) return message.reply('Lütfen yeniden seçmek istediğiniz çekilişin Mesaj ID\'sini yazın.');
         rerollGiveaway(msgId, message);
