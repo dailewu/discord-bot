@@ -613,6 +613,8 @@ async function rerollGiveaway(messageId, commandMsg) {
 }
 
 // ==========================================
-// --- BOTU BAŞLATMA ---
+// --- BOTU BAŞLATMA VE HATA YAKALAMA ---
 // ==========================================
-client.login(process.env.TOKEN);
+client.login(process.env.TOKEN)
+    .then(() => console.log('✅ Bot başarıyla Discord API ile bağlandı!'))
+    .catch((err) => console.error('❌ Bot Discorda bağlanırken hata oluştu (Token yanlış olabilir veya Intent eksik):', err));
