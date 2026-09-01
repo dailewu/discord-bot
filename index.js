@@ -366,7 +366,7 @@ client.on('messageCreate', async (message) => {
         return message.reply('🎮 **CraftRiva Sunucu IP Adresi:** `oyna.craftriva.com`');
     }
     if (content === '!map') {
-        return message.reply('🗺️ **CraftRiva Harita Linki:** http://178.63.186.223:25685/#towny:2431:0:-909:3375:0:0:0:0:perspective');
+        return message.reply('🗺️ **CraftRiva Harita Linki:** http://map.craftriva.com:25685/');
     }
     if (content === '!site') {
         return message.reply('🌐 **CraftRiva Web Sitesi:** https://craftriva.com/');
