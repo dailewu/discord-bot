@@ -11,7 +11,7 @@ const {
 } = require('discord.js');
 const express = require('express');
 const fs = require('fs');
-const discordTranscripts = require('discord-html-transcripts'); // <-- HTML Modülü eklendi
+const discordTranscripts = require('discord-html-transcripts');
 
 // ==========================================
 // --- RENDER 7/24 UPTIME SUNUCUSU (EXPRESS) ---
