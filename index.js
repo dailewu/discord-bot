@@ -551,7 +551,7 @@ client.on('interactionCreate', async (interaction) => {
                 ]
             });
 
-            // <-- KANALI AÇAN OYUNCUYU HAFIZAYA KAYDEDİYORUZ -->
+            // <-- KANALI AÇAN OYUNCUYU HAFIzaya KAYDEDİYORUZ -->
             ticketOwners.set(ticketChannel.id, interaction.user.id);
 
             const welcomeEmbed = new EmbedBuilder()
