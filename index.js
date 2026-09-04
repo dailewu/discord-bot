@@ -7,10 +7,11 @@ const {
     ButtonBuilder, 
     ButtonStyle, 
     PermissionFlagsBits,
-    AttachmentBuilder // <-- DOSYA GÖNDERİMİ İÇİN EKLENDİ
+    AttachmentBuilder 
 } = require('discord.js');
 const express = require('express');
 const fs = require('fs');
+const discordTranscripts = require('discord-html-transcripts'); // <-- HTML Modülü eklendi
 
 // ==========================================
 // --- RENDER 7/24 UPTIME SUNUCUSU (EXPRESS) ---
@@ -33,7 +34,7 @@ app.listen(process.env.PORT || 3000, () => {
 // --- AYARLAR ---
 // ==========================================
 const ANI_FOTOGRAFLAR_KANAL_ID = '1531645133177618641'; 
-const INVITE_KANAL_ID = '1534343282996543639'; // Belirttiğin invite kanalı ID'si
+const INVITE_KANAL_ID = '1534343282996543639'; 
 const MAX_SAME_MESSAGES = 4;
 
 // ==========================================
@@ -41,7 +42,6 @@ const MAX_SAME_MESSAGES = 4;
 // ==========================================
 const DATA_FILE = './invites.json';
 
-// Davetleri dosyadan okuma
 function loadInvites() {
     try {
         if (fs.existsSync(DATA_FILE)) {
@@ -54,7 +54,6 @@ function loadInvites() {
     return new Map();
 }
 
-// Davetleri dosyaya kaydetme
 function saveInvites() {
     try {
         const data = JSON.stringify(Array.from(userInvites.entries()));
@@ -78,10 +77,11 @@ const client = new Client({
     partials: [Partials.Message, Partials.Channel, Partials.Reaction]
 });
 
-const userInvites = loadInvites(); // Kalıcı hafızadan yükle
+const userInvites = loadInvites(); 
 const invitesCache = new Map();
 const spamMap = new Map();
 const giveaways = new Map();
+const ticketOwners = new Map();
 
 // ==========================================
 // --- BOT HAZIR OLDUĞUNDA ---
@@ -241,20 +241,13 @@ client.on('messageCreate', async (message) => {
 
     // --- MESAJ SİLME KOMUTU (!sil [miktar]) - YÖNETİCİ ÖZEL ---
     if (message.content.startsWith('!sil')) {
-        if (!isAdmin) {
-            return message.reply('Bu komutu kullanmak için **Yönetici** yetkisine sahip olmalısın!');
-        }
+        if (!isAdmin) return message.reply('Bu komutu kullanmak için **Yönetici** yetkisine sahip olmalısın!');
 
         const args = message.content.split(' ');
         const amount = parseInt(args[1]);
 
-        if (isNaN(amount) || amount <= 0) {
-            return message.reply('Lütfen silinecek geçerli bir miktar belirt! (Örnek: `!sil 10`)');
-        }
-
-        if (amount > 100) {
-            return message.reply('Tek seferde en fazla 100 mesaj silebilirsin.');
-        }
+        if (isNaN(amount) || amount <= 0) return message.reply('Lütfen silinecek geçerli bir miktar belirt! (Örnek: `!sil 10`)');
+        if (amount > 100) return message.reply('Tek seferde en fazla 100 mesaj silebilirsin.');
 
         try {
             await message.channel.bulkDelete(amount + 1, true);
@@ -269,14 +262,10 @@ client.on('messageCreate', async (message) => {
 
     // --- BLACKLIST KOMUTU (!blacklist [üye]) - YÖNETİCİ ÖZEL ---
     if (message.content.startsWith('!blacklist')) {
-        if (!isAdmin) {
-            return message.reply('Bu komutu kullanmak için **Yönetici** yetkisine sahip olmalısın!');
-        }
+        if (!isAdmin) return message.reply('Bu komutu kullanmak için **Yönetici** yetkisine sahip olmalısın!');
 
         const targetMember = message.mentions.members.first() || message.guild.members.cache.get(message.content.split(' ')[1]);
-        if (!targetMember) {
-            return message.reply('Lütfen banlanacak geçerli bir kullanıcı etiketleyin veya ID girin! (Örnek: `!blacklist @Kullanici`)');
-        }
+        if (!targetMember) return message.reply('Lütfen banlanacak geçerli bir kullanıcı etiketleyin veya ID girin! (Örnek: `!blacklist @Kullanici`)');
 
         try {
             await targetMember.ban({ reason: `Blacklist komutu ile ${message.author.tag} tarafından yasaklandı.` });
@@ -289,16 +278,12 @@ client.on('messageCreate', async (message) => {
 
     // --- UNBLACKLIST KOMUTU (!unblacklist [kullanıcı_id]) - YÖNETİCİ ÖZEL ---
     if (message.content.startsWith('!unblacklist')) {
-        if (!isAdmin) {
-            return message.reply('Bu komutu kullanmak için **Yönetici** yetkisine sahip olmalısın!');
-        }
+        if (!isAdmin) return message.reply('Bu komutu kullanmak için **Yönetici** yetkisine sahip olmalısın!');
 
         const args = message.content.split(' ');
         const targetId = args[1];
 
-        if (!targetId) {
-            return message.reply('Lütfen banı kaldırılacak kullanıcının **ID\'sini** girin! (Örnek: `!unblacklist 123456789012345678`)');
-        }
+        if (!targetId) return message.reply('Lütfen banı kaldırılacak kullanıcının **ID\'sini** girin! (Örnek: `!unblacklist 123456789012345678`)');
 
         try {
             await message.guild.members.unban(targetId, `Unblacklist komutu ile ${message.author.tag} tarafından kaldırıldı.`);
@@ -311,17 +296,13 @@ client.on('messageCreate', async (message) => {
 
     // --- MUTE / TIMEOUT KOMUTU (!mute [üye] [süre]) - YÖNETİCİ ÖZEL ---
     if (message.content.startsWith('!mute')) {
-        if (!isAdmin) {
-            return message.reply('Bu komutu kullanmak için **Yönetici** yetkisine sahip olmalısın!');
-        }
+        if (!isAdmin) return message.reply('Bu komutu kullanmak için **Yönetici** yetkisine sahip olmalısın!');
 
         const args = message.content.split(' ').slice(1);
         const targetMember = message.mentions.members.first() || message.guild.members.cache.get(args[0]);
         const timeInput = args[1];
 
-        if (!targetMember || !timeInput) {
-            return message.reply('Kullanım: `!mute <@Kullanici> <süre(1m/1h/1d)>`');
-        }
+        if (!targetMember || !timeInput) return message.reply('Kullanım: `!mute <@Kullanici> <süre(1m/1h/1d)>`');
 
         let msTime = 0;
         if (timeInput.endsWith('m')) msTime = parseInt(timeInput) * 60 * 1000;
@@ -329,9 +310,7 @@ client.on('messageCreate', async (message) => {
         else if (timeInput.endsWith('d')) msTime = parseInt(timeInput) * 24 * 60 * 60 * 1000;
         else return message.reply('Geçersiz süre formatı! Dakika için `m`, saat için `h`, gün için `d` kullanın.');
 
-        if (isNaN(msTime) || msTime <= 0) {
-            return message.reply('Lütfen geçerli bir süre belirtin!');
-        }
+        if (isNaN(msTime) || msTime <= 0) return message.reply('Lütfen geçerli bir süre belirtin!');
 
         try {
             await targetMember.timeout(msTime, `Mute komutu ile ${message.author.tag} tarafından susturuldu.`);
@@ -344,14 +323,10 @@ client.on('messageCreate', async (message) => {
 
     // --- UNMUTE KOMUTU (!unmute [üye]) - YÖNETİCİ ÖZEL ---
     if (message.content.startsWith('!unmute')) {
-        if (!isAdmin) {
-            return message.reply('Bu komutu kullanmak için **Yönetici** yetkisine sahip olmalısın!');
-        }
+        if (!isAdmin) return message.reply('Bu komutu kullanmak için **Yönetici** yetkisine sahip olmalısın!');
 
         const targetMember = message.mentions.members.first() || message.guild.members.cache.get(message.content.split(' ')[1]);
-        if (!targetMember) {
-            return message.reply('Lütfen zaman aşımı kaldırılacak kullanıcıyı etiketleyin veya ID girin! (Örnek: `!unmute @Kullanici`)');
-        }
+        if (!targetMember) return message.reply('Lütfen zaman aşımı kaldırılacak kullanıcıyı etiketleyin veya ID girin! (Örnek: `!unmute @Kullanici`)');
 
         try {
             await targetMember.timeout(null, `Unmute komutu ile ${message.author.tag} tarafından kaldırıldı.`);
@@ -390,7 +365,7 @@ client.on('messageCreate', async (message) => {
 
         const confirmEmbed = new EmbedBuilder()
             .setTitle('🔒 Destek Talebi Kapatma Onayı')
-            .setDescription('Bu destek talebini kapatmak istediğinizden emin misiniz?\n\n*Onaylarsanız kanal dökümü alınarak kapatılacaktır.*')
+            .setDescription('Bu destek talebini kapatmak istediğinizden emin misiniz?\n\n*Onaylarsanız kanal dökümü HTML olarak alınarak kapatılacaktır.*')
             .setColor('#B22222');
 
         const confirmRow = new ActionRowBuilder().addComponents(
@@ -500,46 +475,41 @@ client.on('interactionCreate', async (interaction) => {
     if (interaction.customId.startsWith('ticket_')) {
         const action = interaction.customId.replace('ticket_', '');
 
-        // --- DESTEK TALEBİ KAPATMA VE DM TRANSCRIPT SİSTEMİ ---
+        // --- HTML DESTEK TALEBİ KAPATMA ---
         if (action === 'confirm_close') {
-            await interaction.reply({ content: '🔒 Destek talebi kapatılıyor. Görüşme kayıtları kaydedilip kanal silinecek...', ephemeral: true });
+            await interaction.reply({ content: '🔒 Destek talebi kapatılıyor. Görüşme kayıtları HTML formatında hazırlanıp oyuncunun DM kutusuna gönderiliyor...', ephemeral: true });
 
             try {
-                // Kanal içerisindeki son mesajları çek
-                const messages = await interaction.channel.messages.fetch({ limit: 100 });
-                // Eskiden yeniye sıralamak için ters çevir
-                const sortedMessages = Array.from(messages.values()).reverse();
-
-                // Transcript metnini oluştur
-                let transcript = `--- ${interaction.channel.name} Destek Talebi Geçmişi ---\n\n`;
-                sortedMessages.forEach(msg => {
-                    const date = new Date(msg.createdTimestamp).toLocaleString('tr-TR', { timeZone: 'Europe/Istanbul' });
-                    // Eğer mesajda yazı yok ama fotoğraf/embed varsa belirtelim
-                    const content = msg.content || (msg.embeds.length > 0 ? '[Embed Mesajı]' : (msg.attachments.size > 0 ? '[Dosya/Medya]' : ''));
-                    transcript += `[${date}] ${msg.author.tag}: ${content}\n`;
+                // HTML Transcript oluşturucu
+                const attachment = await discordTranscripts.createTranscript(interaction.channel, {
+                    limit: -1, 
+                    returnType: 'attachment', 
+                    filename: `transcript-${interaction.channel.name}.html`, 
+                    saveImages: true, 
+                    poweredBy: false 
                 });
 
-                // Txt dosyasını oluştur
-                const transcriptBuffer = Buffer.from(transcript, 'utf-8');
-                const attachment = new AttachmentBuilder(transcriptBuffer, { name: `${interaction.channel.name}-transcript.txt` });
+                // Doğrudan hafızadan bu talebi açan oyuncunun ID'sini çek
+                const ownerId = ticketOwners.get(interaction.channel.id);
+                const ticketOwner = ownerId ? await interaction.guild.members.fetch(ownerId).catch(() => null) : null;
 
-                // Talebi açan kişiyi bul (Bot ilk mesajda etiketliyor)
-                const firstMessage = sortedMessages[0];
-                const ticketOwner = firstMessage ? firstMessage.mentions.users.first() : null;
-
-                // DM kutusuna gönder
-                if (ticketOwner && !ticketOwner.bot) {
+                // Oyuncunun DM kutusuna gönder
+                if (ticketOwner && !ticketOwner.user.bot) {
                     try {
                         await ticketOwner.send({
-                            content: `Merhaba ${ticketOwner}, **${interaction.guild.name}** sunucusundaki destek talebiniz kapatıldı. Çözülen sorununuzun mesaj geçmişini ekteki dosyada bulabilirsiniz.`,
+                            content: `Merhaba ${ticketOwner}, **${interaction.guild.name}** sunucusundaki destek talebiniz kapatıldı. Görüşme kayıtlarını aşağıdaki HTML dosyasını indirip tarayıcınızda açarak inceleyebilirsiniz.`,
                             files: [attachment]
                         });
                     } catch (dmErr) {
-                        console.log(`[BİLGİ] ${ticketOwner.tag} kişisinin DM'si kapalı olduğu için transcript iletilemedi.`);
+                        console.log(`[BİLGİ] ${ticketOwner.user.tag} kişisinin DM'si kapalı olduğu için transcript iletilemedi.`);
                     }
                 }
+
+                // Hafızadan temizle
+                ticketOwners.delete(interaction.channel.id);
+
             } catch (err) {
-                console.error('Transcript dökümü alınırken bir hata oluştu:', err);
+                console.error('HTML Transcript dökümü alınırken bir hata oluştu:', err);
             }
 
             // İşlemler bittikten sonra kanalı sil
@@ -580,6 +550,9 @@ client.on('interactionCreate', async (interaction) => {
                     { id: '1531645132238225590', allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.AttachFiles, PermissionFlagsBits.EmbedLinks, PermissionFlagsBits.ReadMessageHistory] }
                 ]
             });
+
+            // <-- KANALI AÇAN OYUNCUYU HAFIZAYA KAYDEDİYORUZ -->
+            ticketOwners.set(ticketChannel.id, interaction.user.id);
 
             const welcomeEmbed = new EmbedBuilder()
                 .setTitle(`🎫 ${categoryName} Talebi`)
