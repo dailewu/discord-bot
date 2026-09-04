@@ -365,7 +365,7 @@ client.on('messageCreate', async (message) => {
 
         const confirmEmbed = new EmbedBuilder()
             .setTitle('🔒 Destek Talebi Kapatma Onayı')
-            .setDescription('Bu destek talebini kapatmak istediğinizden emin misiniz?\n\n*Onaylarsanız kanal dökümü HTML olarak alınarak kapatılacaktır.*')
+            .setDescription('Bu destek talebini kapatmak istediğinizden emin misiniz?')
             .setColor('#B22222');
 
         const confirmRow = new ActionRowBuilder().addComponents(
@@ -477,7 +477,7 @@ client.on('interactionCreate', async (interaction) => {
 
         // --- HTML DESTEK TALEBİ KAPATMA ---
         if (action === 'confirm_close') {
-            await interaction.reply({ content: '🔒 Destek talebi kapatılıyor. Görüşme kayıtları HTML formatında hazırlanıp oyuncunun DM kutusuna gönderiliyor...', ephemeral: true });
+            await interaction.reply({ content: 'Destek talebi kapatılıyor. Görüşme kayıtları oyuncunun DM kutusuna gönderiliyor...', ephemeral: true });
 
             try {
                 // HTML Transcript oluşturucu
