@@ -6,7 +6,8 @@ const {
     ActionRowBuilder, 
     ButtonBuilder, 
     ButtonStyle, 
-    PermissionFlagsBits 
+    PermissionFlagsBits,
+    AttachmentBuilder // <-- DOSYA GÖNDERİMİ İÇİN EKLENDİ
 } = require('discord.js');
 const express = require('express');
 const fs = require('fs');
@@ -389,7 +390,7 @@ client.on('messageCreate', async (message) => {
 
         const confirmEmbed = new EmbedBuilder()
             .setTitle('🔒 Destek Talebi Kapatma Onayı')
-            .setDescription('Bu destek talebini kapatmak istediğinizden emin misiniz?\n\n*Onaylarsanız kanal 5 saniye içerisinde kalıcı olarak silinecektir.*')
+            .setDescription('Bu destek talebini kapatmak istediğinizden emin misiniz?\n\n*Onaylarsanız kanal dökümü alınarak kapatılacaktır.*')
             .setColor('#B22222');
 
         const confirmRow = new ActionRowBuilder().addComponents(
@@ -499,9 +500,50 @@ client.on('interactionCreate', async (interaction) => {
     if (interaction.customId.startsWith('ticket_')) {
         const action = interaction.customId.replace('ticket_', '');
 
+        // --- DESTEK TALEBİ KAPATMA VE DM TRANSCRIPT SİSTEMİ ---
         if (action === 'confirm_close') {
-            await interaction.reply({ content: '🔒 Destek talebi onaylandı. Kanal 5 saniye içinde siliniyor...', ephemeral: true });
-            setTimeout(() => interaction.channel.delete().catch(() => {}), 5000);
+            await interaction.reply({ content: '🔒 Destek talebi kapatılıyor. Görüşme kayıtları kaydedilip kanal silinecek...', ephemeral: true });
+
+            try {
+                // Kanal içerisindeki son mesajları çek
+                const messages = await interaction.channel.messages.fetch({ limit: 100 });
+                // Eskiden yeniye sıralamak için ters çevir
+                const sortedMessages = Array.from(messages.values()).reverse();
+
+                // Transcript metnini oluştur
+                let transcript = `--- ${interaction.channel.name} Destek Talebi Geçmişi ---\n\n`;
+                sortedMessages.forEach(msg => {
+                    const date = new Date(msg.createdTimestamp).toLocaleString('tr-TR', { timeZone: 'Europe/Istanbul' });
+                    // Eğer mesajda yazı yok ama fotoğraf/embed varsa belirtelim
+                    const content = msg.content || (msg.embeds.length > 0 ? '[Embed Mesajı]' : (msg.attachments.size > 0 ? '[Dosya/Medya]' : ''));
+                    transcript += `[${date}] ${msg.author.tag}: ${content}\n`;
+                });
+
+                // Txt dosyasını oluştur
+                const transcriptBuffer = Buffer.from(transcript, 'utf-8');
+                const attachment = new AttachmentBuilder(transcriptBuffer, { name: `${interaction.channel.name}-transcript.txt` });
+
+                // Talebi açan kişiyi bul (Bot ilk mesajda etiketliyor)
+                const firstMessage = sortedMessages[0];
+                const ticketOwner = firstMessage ? firstMessage.mentions.users.first() : null;
+
+                // DM kutusuna gönder
+                if (ticketOwner && !ticketOwner.bot) {
+                    try {
+                        await ticketOwner.send({
+                            content: `Merhaba ${ticketOwner}, **${interaction.guild.name}** sunucusundaki destek talebiniz kapatıldı. Çözülen sorununuzun mesaj geçmişini ekteki dosyada bulabilirsiniz.`,
+                            files: [attachment]
+                        });
+                    } catch (dmErr) {
+                        console.log(`[BİLGİ] ${ticketOwner.tag} kişisinin DM'si kapalı olduğu için transcript iletilemedi.`);
+                    }
+                }
+            } catch (err) {
+                console.error('Transcript dökümü alınırken bir hata oluştu:', err);
+            }
+
+            // İşlemler bittikten sonra kanalı sil
+            setTimeout(() => interaction.channel.delete().catch(() => {}), 4000);
             return;
         }
 
