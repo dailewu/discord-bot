@@ -290,7 +290,7 @@ client.on('messageCreate', async (message) => {
             return message.reply(`🔓 ID'si belirtilen kullanıcının sunucudaki banı (blacklist) başarıyla kaldırıldı.`);
         } catch (err) {
             console.error('Unblacklist hatası:', err);
-            return message.reply('Ban kaldırılırken hata oluştu. ID\'nin doğru olduğundan ve kullanıcının gerçekten banlı olduğundan emin olun.');
+            return message.reply('Ban kaldırılırken hata oluştu. ID\'nin doğru olduğundan ve kullanıcının zaten banlı olduğundan emin olun.');
         }
     }
 
@@ -355,6 +355,9 @@ client.on('messageCreate', async (message) => {
     }
     if (content === '!site') {
         return message.reply('🌐 **CraftRiva Web Sitesi:** https://craftriva.com/');
+    }
+    if (content === '!sürüm') {
+        return message.reply('📌 **CraftRiva Sunucu Sürümü:** `1.19.4+`');
     }
 
     if (content === '!kapat') {
