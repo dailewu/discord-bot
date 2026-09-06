@@ -351,10 +351,10 @@ client.on('messageCreate', async (message) => {
         return message.reply('🎮 **CraftRiva Sunucu IP Adresi:** `oyna.craftriva.com`');
     }
     if (content === '!map') {
-        return message.reply('🗺️ **CraftRiva Harita Linki:** http://map.craftriva.com/');
+        return message.reply('🗺️ **CraftRiva Harita Linki:** <http://map.craftriva.com/>');
     }
     if (content === '!site') {
-        return message.reply('🌐 **CraftRiva Web Sitesi:** https://craftriva.com/');
+        return message.reply('🌐 **CraftRiva Web Sitesi:** <https://craftriva.com/>');
     }
     if (content === '!sürüm') {
         return message.reply('📌 **CraftRiva Sunucu Sürümü:** `1.19.4+`');
