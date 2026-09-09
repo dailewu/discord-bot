@@ -558,12 +558,39 @@ client.on('interactionCreate', async (interaction) => {
                 return await interaction.showModal(modal);
             }
 
+            // --- YETKİLİ ŞİKAYETİ İÇİN ÖZEL MODAL (FORM) AÇMA ---
+            if (action === 'yetkili-sikayet') {
+                const modal = new ModalBuilder()
+                    .setCustomId('modal_yetkili_sikayet')
+                    .setTitle('Yetkili Şikayeti');
+
+                const yetkiliIsmiInput = new TextInputBuilder()
+                    .setCustomId('yetkili_ismi')
+                    .setLabel('Yetkili İsmi')
+                    .setPlaceholder('Şikayet edilen yetkilinin adını yazın...')
+                    .setStyle(TextInputStyle.Short)
+                    .setRequired(true);
+
+                const aciklamaInput = new TextInputBuilder()
+                    .setCustomId('aciklama')
+                    .setLabel('Açıklama')
+                    .setPlaceholder('Şikayet sebebinizi ve detayları yazın...')
+                    .setStyle(TextInputStyle.Paragraph)
+                    .setRequired(true);
+
+                modal.addComponents(
+                    new ActionRowBuilder().addComponents(yetkiliIsmiInput),
+                    new ActionRowBuilder().addComponents(aciklamaInput)
+                );
+
+                return await interaction.showModal(modal);
+            }
+
             // --- DİĞER KATEGORİLER İÇİN NORMAL TICKET OLUŞTURMA ---
             const categoryMap = {
                 'ceza-itiraz': 'Ceza İtirazı',
                 'genel-destek': 'Genel Destek',
                 'odeme-sorunlari': 'Ödeme Sorunları',
-                'yetkili-sikayet': 'Yetkili Şikayeti',
                 'bug-bildirimi': 'Hata-Bug Bildirimi',
                 'klan-destegi': 'Klan Desteği',
                 'medya': 'Medya',
@@ -632,7 +659,6 @@ client.on('interactionCreate', async (interaction) => {
             const aciklama = interaction.fields.getTextInputValue('aciklama');
 
             const action = 'hile-bildirim';
-            const categoryName = 'Hile Bildirimi';
             const channelName = `${action}-${interaction.user.username.toLowerCase().replace(/[^a-z0-9]/g, '')}`;
 
             const existingChannel = interaction.guild.channels.cache.find(c => c.name === channelName);
@@ -656,76 +682,65 @@ client.on('interactionCreate', async (interaction) => {
                 const hileEmbed = new EmbedBuilder()
                     .setTitle(`⚠️ Hile Şikayeti Talebi`)
                     .setDescription(`Merhaba ${interaction.user}, hile bildirim talebiniz başarıyla oluşturuldu!\n\n` +
-                                      `👤 **Bildirilen Oyuncu:** \`${oyuncuIsmi}\`\n` +
-                                      `🔗 **Kanıt / Link:** ${kanitLink}\n` +
-                                      `📝 **Açıklama:** ${aciklama}\n\n` +
-                                      `Yetkililerimiz en kısa sürede inceleyip ilgilenecektir.`)
-                    .setColor('#E74C3C')
+                                            `👤 **Bildirilen Oyuncu:** \`${oyuncuIsmi}\`\n` +
+                                            `🔗 **Kanıt / Link:** ${kanitLink}\n` +
+                                            `📝 **Açıklama:** ${aciklama}\n\n` +
+                                            `Yetkililerimiz en kısa sürede inceleyip ilgilenecektir.`)
+                    .setColor('#38B6FF') // Kırmızı yerine mavi renk yapıldı
                     .setFooter({ text: 'CraftRiva Destek Sistemi' });
 
                 await ticketChannel.send({ content: `${interaction.user}`, embeds: [hileEmbed] });
                 await interaction.editReply({ content: `✅ Hile bildirim talebiniz oluşturuldu: ${ticketChannel}` });
             } catch (error) {
                 console.error('Hile bildirim kanal oluşturma hatası:', error);
-                if (!interaction.deferred && !interaction.replied) {
-                    await interaction.reply({ content: '❌ Talep kanalı oluşturulurken hata oluştu!', ephemeral: true });
-                } else {
-                    await interaction.editReply({ content: '❌ Talep kanalı oluşturulurken hata oluştu!' });
+                if (interaction.deferred) {
+                    await interaction.editReply({ content: '❌ Hile bildirim kanalı oluşturulurken hata oluştu! Bot yetkilerini kontrol edin.' });
+                }
+            }
+        }
+
+        if (interaction.customId === 'modal_yetkili_sikayet') {
+            const yetkiliIsmi = interaction.fields.getTextInputValue('yetkili_ismi');
+            const aciklama = interaction.fields.getTextInputValue('aciklama');
+
+            const action = 'yetkili-sikayet';
+            const channelName = `${action}-${interaction.user.username.toLowerCase().replace(/[^a-z0-9]/g, '')}`;
+
+            const existingChannel = interaction.guild.channels.cache.find(c => c.name === channelName);
+            if (existingChannel) return interaction.reply({ content: `⚠️ Zaten açık bir yetkili şikayet talebiniz bulunuyor: ${existingChannel}`, ephemeral: true });
+
+            try {
+                await interaction.deferReply({ ephemeral: true });
+
+                const ticketChannel = await interaction.guild.channels.create({
+                    name: channelName,
+                    type: 0,
+                    permissionOverwrites: [
+                        { id: interaction.guild.id, deny: [PermissionFlagsBits.ViewChannel] },
+                        { id: interaction.user.id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.AttachFiles, PermissionFlagsBits.EmbedLinks] },
+                        { id: '1531645132238225590', allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.AttachFiles, PermissionFlagsBits.EmbedLinks, PermissionFlagsBits.ReadMessageHistory] }
+                    ]
+                });
+
+                ticketOwners.set(ticketChannel.id, interaction.user.id);
+
+                const sikayetEmbed = new EmbedBuilder()
+                    .setTitle(`🚨 Yetkili Şikayeti Talebi`)
+                    .setDescription(`Merhaba ${interaction.user}, yetkili şikayet talebiniz başarıyla oluşturuldu!\n\n` +
+                                            `🛡️ **Şikayet Edilen Yetkili:** \`${yetkiliIsmi}\`\n` +
+                                            `📝 **Açıklama:** ${aciklama}\n\n` +
+                                            `Üst yönetimimiz en kısa sürede inceleyip ilgilenecektir.`)
+                    .setColor('#38B6FF')
+                    .setFooter({ text: 'CraftRiva Destek Sistemi' });
+
+                await ticketChannel.send({ content: `${interaction.user}`, embeds: [sikayetEmbed] });
+                await interaction.editReply({ content: `✅ Yetkili şikayet talebiniz oluşturuldu: ${ticketChannel}` });
+            } catch (error) {
+                console.error('Yetkili şikayet kanal oluşturma hatası:', error);
+                if (interaction.deferred) {
+                    await interaction.editReply({ content: '❌ Yetkili şikayet kanalı oluşturulurken hata oluştu! Bot yetkilerini kontrol edin.' });
                 }
             }
         }
     }
 });
-
-// ==========================================
-// --- ÇEKİLİŞ FONKSİYONLARI ---
-// ==========================================
-async function endGiveaway(messageId, commandMsg = null) {
-    const data = giveaways.get(messageId);
-    if (!data || data.ended) return;
-    data.ended = true;
-
-    try {
-        const channel = await client.channels.fetch(data.channelId);
-        const giveawayMsg = await channel.messages.fetch(data.messageId);
-        const participantsArray = Array.from(data.participants);
-
-        if (participantsArray.length === 0) {
-            const endedEmbed = EmbedBuilder.from(giveawayMsg.embeds[0]).setDescription(`⌛ **Bitiş:** Sona Erdi!\n👑 **Kazanan:** Yeterli katılım olmadı.\n👤 **Düzenleyen:** <@${data.guildId}>`).setColor('#FF0000');
-            await giveawayMsg.edit({ embeds: [endedEmbed], components: [] });
-            return channel.send(`🎉 **${data.prize}** çekilişi sona erdi ancak yeterli katılım olmadı.`);
-        }
-
-        const winners = [];
-        const winnerCount = Math.min(data.winnerCount, participantsArray.length);
-        for (let i = 0; i < winnerCount; i++) {
-            const randomIndex = Math.floor(Math.random() * participantsArray.length);
-            winners.push(participantsArray.splice(randomIndex, 1)[0]);
-        }
-
-        const winnerMentions = winners.map(id => `<@${id}>`).join(', ');
-        const endedEmbed = EmbedBuilder.from(giveawayMsg.embeds[0]).setDescription(`⌛ **Bitiş:** Sona Erdi!\n👑 **Kazanan(lar):** ${winnerMentions}`).setColor('#2ECC71');
-        
-        await giveawayMsg.edit({ embeds: [endedEmbed], components: [] });
-        await channel.send(`🎉 Tebrikler ${winnerMentions}! **${data.prize}** çekilişini kazandınız!`);
-    } catch (err) {
-        console.error('Çekiliş bitirilirken hata:', err.message);
-        if (commandMsg) commandMsg.reply('Çekiliş bitirilirken bir hata oluştu.');
-    }
-}
-
-async function rerollGiveaway(messageId, commandMsg) {
-    const data = giveaways.get(messageId);
-    if (!data) return commandMsg.reply('Bu ID ile kayıtlı bir çekiliş bulunamadı.');
-    
-    const participantsArray = Array.from(data.participants);
-    if (participantsArray.length === 0) return commandMsg.reply('Katılımcı bulunamadığı için yeni kazanan seçilemiyor.');
-
-    const newWinner = participantsArray[Math.floor(Math.random() * participantsArray.length)];
-    commandMsg.channel.send(`🎉 Yeni kazanan seçildi! Tebrikler <@${newWinner}>, **${data.prize}** çekilişini kazandın!`);
-}
-
-// ==========================================
-// --- BOTU BAŞLATMA ---
-// ==========================================
-client.login(process.env.TOKEN);
