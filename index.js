@@ -10,7 +10,8 @@ const {
     AttachmentBuilder,
     ModalBuilder,
     TextInputBuilder,
-    TextInputStyle
+    TextInputStyle,
+    MessageFlags // Hata vermemesi için MessageFlags eklendi
 } = require('discord.js');
 const express = require('express');
 const fs = require('fs');
@@ -89,7 +90,8 @@ const ticketOwners = new Map();
 // ==========================================
 // --- BOT HAZIR OLDUĞUNDA ---
 // ==========================================
-client.on('ready', async () => {
+// HATA ÇÖZÜMÜ: ready yerine clientReady kullanıldı.
+client.once('clientReady', async () => {
     console.log(`🤖 ${client.user.tag} olarak giriş yapıldı ve aktif!`);
     
     client.guilds.cache.forEach(async (guild) => {
@@ -483,7 +485,8 @@ client.on('interactionCreate', async (interaction) => {
 
             // --- HTML DESTEK TALEBİ KAPATMA ---
             if (action === 'confirm_close') {
-                await interaction.reply({ content: 'Destek talebi kapatılıyor. Görüşme kayıtları oyuncunun DM kutusuna gönderiliyor...', ephemeral: true });
+                // Hata çözümü: ephemeral: true yerine flags kullanıldı
+                await interaction.reply({ content: 'Destek talebi kapatılıyor. Görüşme kayıtları oyuncunun DM kutusuna gönderiliyor...', flags: MessageFlags.Ephemeral });
 
                 try {
                     const attachment = await discordTranscripts.createTranscript(interaction.channel, {
@@ -519,7 +522,7 @@ client.on('interactionCreate', async (interaction) => {
 
             if (action === 'cancel_close') {
                 await interaction.message.delete().catch(() => {});
-                return interaction.reply({ content: '❌ Kapatma işlemi iptal edildi.', ephemeral: true });
+                return interaction.reply({ content: '❌ Kapatma işlemi iptal edildi.', flags: MessageFlags.Ephemeral });
             }
 
             // --- HİLE BİLDİRİMİ İÇİN ÖZEL MODAL (FORM) AÇMA ---
@@ -601,7 +604,7 @@ client.on('interactionCreate', async (interaction) => {
             const channelName = `${action}-${interaction.user.username.toLowerCase().replace(/[^a-z0-9]/g, '')}`;
 
             const existingChannel = interaction.guild.channels.cache.find(c => c.name === channelName);
-            if (existingChannel) return interaction.reply({ content: `⚠️ Zaten açık bir destek talebiniz bulunuyor: ${existingChannel}`, ephemeral: true });
+            if (existingChannel) return interaction.reply({ content: `⚠️ Zaten açık bir destek talebiniz bulunuyor: ${existingChannel}`, flags: MessageFlags.Ephemeral });
 
             try {
                 const ticketChannel = await interaction.guild.channels.create({
@@ -623,23 +626,23 @@ client.on('interactionCreate', async (interaction) => {
                     .setFooter({ text: 'CraftRiva Destek Sistemi' });
 
                 await ticketChannel.send({ content: `${interaction.user}`, embeds: [welcomeEmbed] });
-                await interaction.reply({ content: `✅ Destek talebiniz oluşturuldu: ${ticketChannel}`, ephemeral: true });
+                await interaction.reply({ content: `✅ Destek talebiniz oluşturuldu: ${ticketChannel}`, flags: MessageFlags.Ephemeral });
             } catch (error) {
                 console.error('Kanal oluşturma hatası:', error);
-                await interaction.reply({ content: '❌ Destek kanalı oluşturulurken hata oluştu! Bot yetkilerini kontrol edin.', ephemeral: true });
+                await interaction.reply({ content: '❌ Destek kanalı oluşturulurken hata oluştu! Bot yetkilerini kontrol edin.', flags: MessageFlags.Ephemeral });
             }
         }
 
         if (interaction.customId === 'giveaway_join') {
             const giveawayData = giveaways.get(interaction.message.id);
-            if (!giveawayData || giveawayData.ended) return interaction.reply({ content: '❌ Bu çekiliş sona ermiş!', ephemeral: true });
+            if (!giveawayData || giveawayData.ended) return interaction.reply({ content: '❌ Bu çekiliş sona ermiş!', flags: MessageFlags.Ephemeral });
 
             if (giveawayData.participants.has(interaction.user.id)) {
                 giveawayData.participants.delete(interaction.user.id);
-                await interaction.reply({ content: '❌ Çekilişten katılımınızı geri çektiniz.', ephemeral: true });
+                await interaction.reply({ content: '❌ Çekilişten katılımınızı geri çektiniz.', flags: MessageFlags.Ephemeral });
             } else {
                 giveawayData.participants.add(interaction.user.id);
-                await interaction.reply({ content: '🎉 Çekilişe başarıyla katıldınız! Bol şans.', ephemeral: true });
+                await interaction.reply({ content: '🎉 Çekilişe başarıyla katıldınız! Bol şans.', flags: MessageFlags.Ephemeral });
             }
 
             const count = giveawayData.participants.size;
@@ -662,10 +665,10 @@ client.on('interactionCreate', async (interaction) => {
             const channelName = `${action}-${interaction.user.username.toLowerCase().replace(/[^a-z0-9]/g, '')}`;
 
             const existingChannel = interaction.guild.channels.cache.find(c => c.name === channelName);
-            if (existingChannel) return interaction.reply({ content: `⚠️ Zaten açık bir hile bildirim talebiniz bulunuyor: ${existingChannel}`, ephemeral: true });
+            if (existingChannel) return interaction.reply({ content: `⚠️ Zaten açık bir hile bildirim talebiniz bulunuyor: ${existingChannel}`, flags: MessageFlags.Ephemeral });
 
             try {
-                await interaction.deferReply({ ephemeral: true });
+                await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
                 const ticketChannel = await interaction.guild.channels.create({
                     name: channelName,
@@ -686,7 +689,7 @@ client.on('interactionCreate', async (interaction) => {
                                             `🔗 **Kanıt / Link:** ${kanitLink}\n` +
                                             `📝 **Açıklama:** ${aciklama}\n\n` +
                                             `Yetkililerimiz en kısa sürede inceleyip ilgilenecektir.`)
-                    .setColor('#38B6FF') // Kırmızı yerine mavi renk yapıldı
+                    .setColor('#38B6FF') 
                     .setFooter({ text: 'CraftRiva Destek Sistemi' });
 
                 await ticketChannel.send({ content: `${interaction.user}`, embeds: [hileEmbed] });
@@ -707,10 +710,10 @@ client.on('interactionCreate', async (interaction) => {
             const channelName = `${action}-${interaction.user.username.toLowerCase().replace(/[^a-z0-9]/g, '')}`;
 
             const existingChannel = interaction.guild.channels.cache.find(c => c.name === channelName);
-            if (existingChannel) return interaction.reply({ content: `⚠️ Zaten açık bir yetkili şikayet talebiniz bulunuyor: ${existingChannel}`, ephemeral: true });
+            if (existingChannel) return interaction.reply({ content: `⚠️ Zaten açık bir yetkili şikayet talebiniz bulunuyor: ${existingChannel}`, flags: MessageFlags.Ephemeral });
 
             try {
-                await interaction.deferReply({ ephemeral: true });
+                await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
                 const ticketChannel = await interaction.guild.channels.create({
                     name: channelName,
@@ -743,4 +746,10 @@ client.on('interactionCreate', async (interaction) => {
             }
         }
     }
+});
+
+// HATA ÇÖZÜMÜ: Botun giriş yapması için gerekli komut eklendi! 
+// (Eğer Token'i kodun içine direkt yazıyorsan process.env.TOKEN kısmını silip 'SENİN_BOT_TOKENİN' şeklinde girebilirsin)
+client.login(process.env.TOKEN).catch(err => {
+    console.error("Bot giriş yaparken hata oluştu:", err);
 });
