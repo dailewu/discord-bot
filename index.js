@@ -7,7 +7,10 @@ const {
     ButtonBuilder, 
     ButtonStyle, 
     PermissionFlagsBits,
-    AttachmentBuilder 
+    AttachmentBuilder,
+    ModalBuilder,
+    TextInputBuilder,
+    TextInputStyle
 } = require('discord.js');
 const express = require('express');
 const fs = require('fs');
@@ -470,125 +473,207 @@ client.on('messageCreate', async (message) => {
 });
 
 // ==========================================
-// --- ETKİLEŞİMLER (BUTON TIKLAMALARI) ---
+// --- ETKİLEŞİMLER (BUTON & MODAL) ---
 // ==========================================
 client.on('interactionCreate', async (interaction) => {
-    if (!interaction.isButton()) return;
+    // --- BUTON TIKLAMALARI ---
+    if (interaction.isButton()) {
+        if (interaction.customId.startsWith('ticket_')) {
+            const action = interaction.customId.replace('ticket_', '');
 
-    if (interaction.customId.startsWith('ticket_')) {
-        const action = interaction.customId.replace('ticket_', '');
+            // --- HTML DESTEK TALEBİ KAPATMA ---
+            if (action === 'confirm_close') {
+                await interaction.reply({ content: 'Destek talebi kapatılıyor. Görüşme kayıtları oyuncunun DM kutusuna gönderiliyor...', ephemeral: true });
 
-        // --- HTML DESTEK TALEBİ KAPATMA ---
-        if (action === 'confirm_close') {
-            await interaction.reply({ content: 'Destek talebi kapatılıyor. Görüşme kayıtları oyuncunun DM kutusuna gönderiliyor...', ephemeral: true });
+                try {
+                    const attachment = await discordTranscripts.createTranscript(interaction.channel, {
+                        limit: -1, 
+                        returnType: 'attachment', 
+                        filename: `transcript-${interaction.channel.name}.html`, 
+                        saveImages: true, 
+                        poweredBy: false 
+                    });
 
-            try {
-                // HTML Transcript oluşturucu
-                const attachment = await discordTranscripts.createTranscript(interaction.channel, {
-                    limit: -1, 
-                    returnType: 'attachment', 
-                    filename: `transcript-${interaction.channel.name}.html`, 
-                    saveImages: true, 
-                    poweredBy: false 
-                });
+                    const ownerId = ticketOwners.get(interaction.channel.id);
+                    const ticketOwner = ownerId ? await interaction.guild.members.fetch(ownerId).catch(() => null) : null;
 
-                // Doğrudan hafızadan bu talebi açan oyuncunun ID'sini çek
-                const ownerId = ticketOwners.get(interaction.channel.id);
-                const ticketOwner = ownerId ? await interaction.guild.members.fetch(ownerId).catch(() => null) : null;
-
-                // Oyuncunun DM kutusuna gönder
-                if (ticketOwner && !ticketOwner.user.bot) {
-                    try {
-                        await ticketOwner.send({
-                            content: `Merhaba ${ticketOwner}, **${interaction.guild.name}** sunucusundaki destek talebiniz kapatıldı. Görüşme kayıtlarını aşağıdaki HTML dosyasını indirip tarayıcınızda açarak inceleyebilirsiniz.`,
-                            files: [attachment]
-                        });
-                    } catch (dmErr) {
-                        console.log(`[BİLGİ] ${ticketOwner.user.tag} kişisinin DM'si kapalı olduğu için transcript iletilemedi.`);
+                    if (ticketOwner && !ticketOwner.user.bot) {
+                        try {
+                            await ticketOwner.send({
+                                content: `Merhaba ${ticketOwner}, **${interaction.guild.name}** sunucusundaki destek talebiniz kapatıldı. Görüşme kayıtlarını aşağıdaki HTML dosyasını indirip tarayıcınızda açarak inceleyebilirsiniz.`,
+                                files: [attachment]
+                            });
+                        } catch (dmErr) {
+                            console.log(`[BİLGİ] ${ticketOwner.user.tag} kişisinin DM'si kapalı olduğu için transcript iletilemedi.`);
+                        }
                     }
+
+                    ticketOwners.delete(interaction.channel.id);
+                } catch (err) {
+                    console.error('HTML Transcript dökümü alınırken bir hata oluştu:', err);
                 }
 
-                // Hafızadan temizle
-                ticketOwners.delete(interaction.channel.id);
-
-            } catch (err) {
-                console.error('HTML Transcript dökümü alınırken bir hata oluştu:', err);
+                setTimeout(() => interaction.channel.delete().catch(() => {}), 4000);
+                return;
             }
 
-            // İşlemler bittikten sonra kanalı sil
-            setTimeout(() => interaction.channel.delete().catch(() => {}), 4000);
-            return;
+            if (action === 'cancel_close') {
+                await interaction.message.delete().catch(() => {});
+                return interaction.reply({ content: '❌ Kapatma işlemi iptal edildi.', ephemeral: true });
+            }
+
+            // --- HİLE BİLDİRİMİ İÇİN ÖZEL MODAL (FORM) AÇMA ---
+            if (action === 'hile-bildirim') {
+                const modal = new ModalBuilder()
+                    .setCustomId('modal_hile_bildirim')
+                    .setTitle('Hile Şikayeti');
+
+                const oyuncuInput = new TextInputBuilder()
+                    .setCustomId('oyuncu_ismi')
+                    .setLabel('Oyuncu İsmi')
+                    .setPlaceholder('Bildirilecek oyuncunun adını yazın...')
+                    .setStyle(TextInputStyle.Short)
+                    .setRequired(true);
+
+                const kanitInput = new TextInputBuilder()
+                    .setCustomId('kanit_link')
+                    .setLabel('Kanıt (link / açıklama)')
+                    .setPlaceholder('Video veya fotoğraf linkini ekleyin...')
+                    .setStyle(TextInputStyle.Short)
+                    .setRequired(true);
+
+                const aciklamaInput = new TextInputBuilder()
+                    .setCustomId('aciklama')
+                    .setLabel('Açıklama')
+                    .setPlaceholder('Durumu kısaca özetleyin...')
+                    .setStyle(TextInputStyle.Paragraph)
+                    .setRequired(true);
+
+                modal.addComponents(
+                    new ActionRowBuilder().addComponents(oyuncuInput),
+                    new ActionRowBuilder().addComponents(kanitInput),
+                    new ActionRowBuilder().addComponents(aciklamaInput)
+                );
+
+                return await interaction.showModal(modal);
+            }
+
+            // --- DİĞER KATEGORİLER İÇİN NORMAL TICKET OLUŞTURMA ---
+            const categoryMap = {
+                'ceza-itiraz': 'Ceza İtirazı',
+                'genel-destek': 'Genel Destek',
+                'odeme-sorunlari': 'Ödeme Sorunları',
+                'yetkili-sikayet': 'Yetkili Şikayeti',
+                'bug-bildirimi': 'Hata-Bug Bildirimi',
+                'klan-destegi': 'Klan Desteği',
+                'medya': 'Medya',
+                'baglanti-sorunlari': 'Bağlantı Sorunları'
+            };
+
+            const categoryName = categoryMap[action] || 'Destek';
+            const channelName = `${action}-${interaction.user.username.toLowerCase().replace(/[^a-z0-9]/g, '')}`;
+
+            const existingChannel = interaction.guild.channels.cache.find(c => c.name === channelName);
+            if (existingChannel) return interaction.reply({ content: `⚠️ Zaten açık bir destek talebiniz bulunuyor: ${existingChannel}`, ephemeral: true });
+
+            try {
+                const ticketChannel = await interaction.guild.channels.create({
+                    name: channelName,
+                    type: 0,
+                    permissionOverwrites: [
+                        { id: interaction.guild.id, deny: [PermissionFlagsBits.ViewChannel] },
+                        { id: interaction.user.id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.AttachFiles, PermissionFlagsBits.EmbedLinks] },
+                        { id: '1531645132238225590', allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.AttachFiles, PermissionFlagsBits.EmbedLinks, PermissionFlagsBits.ReadMessageHistory] }
+                    ]
+                });
+
+                ticketOwners.set(ticketChannel.id, interaction.user.id);
+
+                const welcomeEmbed = new EmbedBuilder()
+                    .setTitle(`🎫 ${categoryName} Talebi`)
+                    .setDescription(`Merhaba ${interaction.user}, destek talebiniz başarıyla oluşturuldu!\n\n📌 **Kategori:** ${categoryName}\n\nLütfen sorununuzu detaylı şekilde açıklayınız.\n\nYetkililerimiz en kısa sürede ilgilenecektir.`)
+                    .setColor('#38B6FF')
+                    .setFooter({ text: 'CraftRiva Destek Sistemi' });
+
+                await ticketChannel.send({ content: `${interaction.user}`, embeds: [welcomeEmbed] });
+                await interaction.reply({ content: `✅ Destek talebiniz oluşturuldu: ${ticketChannel}`, ephemeral: true });
+            } catch (error) {
+                console.error('Kanal oluşturma hatası:', error);
+                await interaction.reply({ content: '❌ Destek kanalı oluşturulurken hata oluştu! Bot yetkilerini kontrol edin.', ephemeral: true });
+            }
         }
 
-        if (action === 'cancel_close') {
-            await interaction.message.delete().catch(() => {});
-            return interaction.reply({ content: '❌ Kapatma işlemi iptal edildi.', ephemeral: true });
-        }
+        if (interaction.customId === 'giveaway_join') {
+            const giveawayData = giveaways.get(interaction.message.id);
+            if (!giveawayData || giveawayData.ended) return interaction.reply({ content: '❌ Bu çekiliş sona ermiş!', ephemeral: true });
 
-        const categoryMap = {
-            'ceza-itiraz': 'Ceza İtirazı',
-            'hile-bildirim': 'Hile Bildirimi',
-            'genel-destek': 'Genel Destek',
-            'odeme-sorunlari': 'Ödeme Sorunları',
-            'yetkili-sikayet': 'Yetkili Şikayeti',
-            'bug-bildirimi': 'Hata-Bug Bildirimi',
-            'klan-destegi': 'Klan Desteği',
-            'medya': 'Medya',
-            'baglanti-sorunlari': 'Bağlantı Sorunları'
-        };
+            if (giveawayData.participants.has(interaction.user.id)) {
+                giveawayData.participants.delete(interaction.user.id);
+                await interaction.reply({ content: '❌ Çekilişten katılımınızı geri çektiniz.', ephemeral: true });
+            } else {
+                giveawayData.participants.add(interaction.user.id);
+                await interaction.reply({ content: '🎉 Çekilişe başarıyla katıldınız! Bol şans.', ephemeral: true });
+            }
 
-        const categoryName = categoryMap[action] || 'Destek';
-        const channelName = `${action}-${interaction.user.username.toLowerCase().replace(/[^a-z0-9]/g, '')}`;
+            const count = giveawayData.participants.size;
+            const row = new ActionRowBuilder().addComponents(
+                new ButtonBuilder().setCustomId('giveaway_join').setLabel(`Katıl (${count})`).setEmoji('🎉').setStyle(ButtonStyle.Primary)
+            );
 
-        const existingChannel = interaction.guild.channels.cache.find(c => c.name === channelName);
-        if (existingChannel) return interaction.reply({ content: `⚠️ Zaten açık bir destek talebiniz bulunuyor: ${existingChannel}`, ephemeral: true });
-
-        try {
-            const ticketChannel = await interaction.guild.channels.create({
-                name: channelName,
-                type: 0,
-                permissionOverwrites: [
-                    { id: interaction.guild.id, deny: [PermissionFlagsBits.ViewChannel] },
-                    { id: interaction.user.id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.AttachFiles, PermissionFlagsBits.EmbedLinks] },
-                    { id: '1531645132238225590', allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.AttachFiles, PermissionFlagsBits.EmbedLinks, PermissionFlagsBits.ReadMessageHistory] }
-                ]
-            });
-
-            // <-- KANALI AÇAN OYUNCUYU HAFIzaya KAYDEDİYORUZ -->
-            ticketOwners.set(ticketChannel.id, interaction.user.id);
-
-            const welcomeEmbed = new EmbedBuilder()
-                .setTitle(`🎫 ${categoryName} Talebi`)
-                .setDescription(`Merhaba ${interaction.user}, destek talebiniz başarıyla oluşturuldu!\n\n📌 **Kategori:** ${categoryName}\n\nLütfen sorununuzu detaylı şekilde açıklayınız.\n\nYetkililerimiz en kısa sürede ilgilenecektir.`)
-                .setColor('#38B6FF')
-                .setFooter({ text: 'CraftRiva Destek Sistemi' });
-
-            await ticketChannel.send({ content: `${interaction.user}`, embeds: [welcomeEmbed] });
-            await interaction.reply({ content: `✅ Destek talebiniz oluşturuldu: ${ticketChannel}`, ephemeral: true });
-        } catch (error) {
-            console.error('Kanal oluşturma hatası:', error);
-            await interaction.reply({ content: '❌ Destek kanalı oluşturulurken hata oluştu! Bot yetkilerini kontrol edin.', ephemeral: true });
+            await interaction.message.edit({ components: [row] }).catch(() => {});
         }
     }
 
-    if (interaction.customId === 'giveaway_join') {
-        const giveawayData = giveaways.get(interaction.message.id);
-        if (!giveawayData || giveawayData.ended) return interaction.reply({ content: '❌ Bu çekiliş sona ermiş!', ephemeral: true });
+    // --- MODAL (FORM) GÖNDERİMİ İŞLEME ---
+    if (interaction.isModalSubmit()) {
+        if (interaction.customId === 'modal_hile_bildirim') {
+            const oyuncuIsmi = interaction.fields.getTextInputValue('oyuncu_ismi');
+            const kanitLink = interaction.fields.getTextInputValue('kanit_link');
+            const aciklama = interaction.fields.getTextInputValue('aciklama');
 
-        if (giveawayData.participants.has(interaction.user.id)) {
-            giveawayData.participants.delete(interaction.user.id);
-            await interaction.reply({ content: '❌ Çekilişten katılımınızı geri çektiniz.', ephemeral: true });
-        } else {
-            giveawayData.participants.add(interaction.user.id);
-            await interaction.reply({ content: '🎉 Çekilişe başarıyla katıldınız! Bol şans.', ephemeral: true });
+            const action = 'hile-bildirim';
+            const categoryName = 'Hile Bildirimi';
+            const channelName = `${action}-${interaction.user.username.toLowerCase().replace(/[^a-z0-9]/g, '')}`;
+
+            const existingChannel = interaction.guild.channels.cache.find(c => c.name === channelName);
+            if (existingChannel) return interaction.reply({ content: `⚠️ Zaten açık bir hile bildirim talebiniz bulunuyor: ${existingChannel}`, ephemeral: true });
+
+            try {
+                await interaction.deferReply({ ephemeral: true });
+
+                const ticketChannel = await interaction.guild.channels.create({
+                    name: channelName,
+                    type: 0,
+                    permissionOverwrites: [
+                        { id: interaction.guild.id, deny: [PermissionFlagsBits.ViewChannel] },
+                        { id: interaction.user.id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.AttachFiles, PermissionFlagsBits.EmbedLinks] },
+                        { id: '1531645132238225590', allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.AttachFiles, PermissionFlagsBits.EmbedLinks, PermissionFlagsBits.ReadMessageHistory] }
+                    ]
+                });
+
+                ticketOwners.set(ticketChannel.id, interaction.user.id);
+
+                const hileEmbed = new EmbedBuilder()
+                    .setTitle(`⚠️ Hile Şikayeti Talebi`)
+                    .setDescription(`Merhaba ${interaction.user}, hile bildirim talebiniz başarıyla oluşturuldu!\n\n` +
+                                      `👤 **Bildirilen Oyuncu:** \`${oyuncuIsmi}\`\n` +
+                                      `🔗 **Kanıt / Link:** ${kanitLink}\n` +
+                                      `📝 **Açıklama:** ${aciklama}\n\n` +
+                                      `Yetkililerimiz en kısa sürede inceleyip ilgilenecektir.`)
+                    .setColor('#E74C3C')
+                    .setFooter({ text: 'CraftRiva Destek Sistemi' });
+
+                await ticketChannel.send({ content: `${interaction.user}`, embeds: [hileEmbed] });
+                await interaction.editReply({ content: `✅ Hile bildirim talebiniz oluşturuldu: ${ticketChannel}` });
+            } catch (error) {
+                console.error('Hile bildirim kanal oluşturma hatası:', error);
+                if (!interaction.deferred && !interaction.replied) {
+                    await interaction.reply({ content: '❌ Talep kanalı oluşturulurken hata oluştu!', ephemeral: true });
+                } else {
+                    await interaction.editReply({ content: '❌ Talep kanalı oluşturulurken hata oluştu!' });
+                }
+            }
         }
-
-        const count = giveawayData.participants.size;
-        const row = new ActionRowBuilder().addComponents(
-            new ButtonBuilder().setCustomId('giveaway_join').setLabel(`Katıl (${count})`).setEmoji('🎉').setStyle(ButtonStyle.Primary)
-        );
-
-        await interaction.message.edit({ components: [row] }).catch(() => {});
     }
 });
 
