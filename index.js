@@ -530,7 +530,8 @@ client.on('interactionCreate', async (interaction) => {
             const action = interaction.customId.replace('ticket_', '');
 
             if (action === 'confirm_close') {
-                await interaction.reply({ content: 'Destek talebi kapatılıyor...', flags: MessageFlags.Ephemeral });
+                // İstediğin yeni mesaj buraya eklendi:
+                await interaction.reply({ content: 'Destek talebi kapatılıyor, destek mesaj kayıtları oyuncunun DM sine gönderiliyor.', flags: MessageFlags.Ephemeral });
 
                 try {
                     const attachment = await discordTranscripts.createTranscript(interaction.channel, {
@@ -614,7 +615,6 @@ client.on('interactionCreate', async (interaction) => {
 
                 ticketOwners.set(ticketChannel.id, interaction.user.id);
 
-                // ESKİ DETAYLI FORMAT (İstediğin gibi geri getirildi)
                 const welcomeEmbed = new EmbedBuilder()
                     .setTitle(`🎫 ${categoryName} Talebi`)
                     .setDescription(`Merhaba ${interaction.user}, destek talebiniz başarıyla oluşturuldu!\n\n📌 **Kategori:** ${categoryName}\n\nLütfen sorununuzu detaylı şekilde açıklayınız.\n\nYetkililerimiz en kısa sürede ilgilenecektir.`)
@@ -677,7 +677,6 @@ client.on('interactionCreate', async (interaction) => {
 
                 ticketOwners.set(ticketChannel.id, interaction.user.id);
 
-                // MODAL İÇİN DE ESKİ FORMAT (İstediğin gibi düzenlendi)
                 const embed = new EmbedBuilder()
                     .setTitle(`🎫 ${categoryName}`)
                     .setDescription(`Merhaba ${interaction.user}, destek talebiniz başarıyla oluşturuldu!\n\n📌 **Kategori:** ${categoryName}\n**${isHile ? 'Bildirilen Oyuncu' : 'Şikayet Edilen Yetkili'}:** ${field1}\n${field2 ? `**Kanıt:** ${field2}\n` : ''}**Açıklama:** ${aciklama}\n\nLütfen yetkililerin sizinle ilgilenmesini bekleyin.`)
