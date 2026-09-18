@@ -30,8 +30,9 @@ app.get('/ping', (req, res) => {
     res.status(200).send("Pong!");
 });
 
-app.listen(process.env.PORT || 3000, () => {
-    console.log('Uptime sunucusu aktif.');
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, '0.0.0.0', () => {
+    console.log(`Uptime sunucusu aktif, ${PORT} portunda çalışıyor.`);
 });
 
 // ==========================================
