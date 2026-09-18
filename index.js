@@ -530,7 +530,6 @@ client.on('interactionCreate', async (interaction) => {
             const action = interaction.customId.replace('ticket_', '');
 
             if (action === 'confirm_close') {
-                // İstediğin yeni mesaj buraya eklendi:
                 await interaction.reply({ content: 'Destek talebi kapatılıyor, destek mesaj kayıtları oyuncunun DM sine gönderiliyor.', flags: MessageFlags.Ephemeral });
 
                 try {
@@ -677,9 +676,10 @@ client.on('interactionCreate', async (interaction) => {
 
                 ticketOwners.set(ticketChannel.id, interaction.user.id);
 
+                // Modal embed metni güncellendi:
                 const embed = new EmbedBuilder()
                     .setTitle(`🎫 ${categoryName}`)
-                    .setDescription(`Merhaba ${interaction.user}, destek talebiniz başarıyla oluşturuldu!\n\n📌 **Kategori:** ${categoryName}\n**${isHile ? 'Bildirilen Oyuncu' : 'Şikayet Edilen Yetkili'}:** ${field1}\n${field2 ? `**Kanıt:** ${field2}\n` : ''}**Açıklama:** ${aciklama}\n\nLütfen yetkililerin sizinle ilgilenmesini bekleyin.`)
+                    .setDescription(`Merhaba ${interaction.user}, destek talebiniz başarıyla oluşturuldu!\n\n📌 **Kategori:** ${categoryName}\n**${isHile ? 'Bildirilen Oyuncu' : 'Şikayet Edilen Yetkili'}:** ${field1}\n${field2 ? `**Kanıt:** ${field2}\n` : ''}**Açıklama:** ${aciklama}\n\nSorununuzu detaylı şekilde açıklayınız.`)
                     .setColor('#38B6FF')
                     .setFooter({ text: 'CraftRiva Destek Sistemi' });
 
