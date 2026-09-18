@@ -11,7 +11,7 @@ const {
     ModalBuilder,
     TextInputBuilder,
     TextInputStyle,
-    MessageFlags // Hata vermemesi için MessageFlags eklendi
+    MessageFlags
 } = require('discord.js');
 const express = require('express');
 const fs = require('fs');
@@ -614,10 +614,12 @@ client.on('interactionCreate', async (interaction) => {
 
                 ticketOwners.set(ticketChannel.id, interaction.user.id);
 
+                // ESKİ DETAYLI FORMAT (İstediğin gibi geri getirildi)
                 const welcomeEmbed = new EmbedBuilder()
                     .setTitle(`🎫 ${categoryName} Talebi`)
-                    .setDescription(`Merhaba ${interaction.user}, destek talebiniz başarıyla oluşturuldu!`)
-                    .setColor('#38B6FF');
+                    .setDescription(`Merhaba ${interaction.user}, destek talebiniz başarıyla oluşturuldu!\n\n📌 **Kategori:** ${categoryName}\n\nLütfen sorununuzu detaylı şekilde açıklayınız.\n\nYetkililerimiz en kısa sürede ilgilenecektir.`)
+                    .setColor('#38B6FF')
+                    .setFooter({ text: 'CraftRiva Destek Sistemi' });
 
                 await ticketChannel.send({ content: `${interaction.user}`, embeds: [welcomeEmbed] });
                 await interaction.reply({ content: `✅ Destek talebiniz oluşturuldu: ${ticketChannel}`, flags: MessageFlags.Ephemeral });
@@ -633,7 +635,7 @@ client.on('interactionCreate', async (interaction) => {
 
             if (giveawayData.participants.has(interaction.user.id)) {
                 giveawayData.participants.delete(interaction.user.id);
-                await interaction.reply({ content: '❌ Çekilişten katılımınızı geri çektiniz.', flags: MessageFlags.Ephemeral });
+                await interaction.reply({ content: '❌ Çekilişten katılımınızı geri cektiniz.', flags: MessageFlags.Ephemeral });
             } else {
                 giveawayData.participants.add(interaction.user.id);
                 await interaction.reply({ content: '🎉 Çekilişe başarıyla katıldınız!', flags: MessageFlags.Ephemeral });
@@ -675,10 +677,12 @@ client.on('interactionCreate', async (interaction) => {
 
                 ticketOwners.set(ticketChannel.id, interaction.user.id);
 
+                // MODAL İÇİN DE ESKİ FORMAT (İstediğin gibi düzenlendi)
                 const embed = new EmbedBuilder()
                     .setTitle(`🎫 ${categoryName}`)
-                    .setDescription(`**${isHile ? 'Bildirilen Oyuncu' : 'Şikayet Edilen Yetkili'}:** ${field1}\n${field2 ? `**Kanıt:** ${field2}\n` : ''}**Açıklama:** ${aciklama}`)
-                    .setColor('#38B6FF');
+                    .setDescription(`Merhaba ${interaction.user}, destek talebiniz başarıyla oluşturuldu!\n\n📌 **Kategori:** ${categoryName}\n**${isHile ? 'Bildirilen Oyuncu' : 'Şikayet Edilen Yetkili'}:** ${field1}\n${field2 ? `**Kanıt:** ${field2}\n` : ''}**Açıklama:** ${aciklama}\n\nLütfen yetkililerin sizinle ilgilenmesini bekleyin.`)
+                    .setColor('#38B6FF')
+                    .setFooter({ text: 'CraftRiva Destek Sistemi' });
 
                 await ticketChannel.send({ content: `${interaction.user}`, embeds: [embed] });
                 await interaction.reply({ content: `✅ Talebiniz oluşturuldu: ${ticketChannel}`, flags: MessageFlags.Ephemeral });
