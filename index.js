@@ -412,7 +412,7 @@ client.on('messageCreate', async (message) => {
     if (content === '!ip') return message.reply('🎮 **CraftRiva Sunucu IP Adresi:** `oyna.craftriva.com`');
     if (content === '!map') return message.reply('🗺️ **CraftRiva Harita Linki:** <http://map.craftriva.com/>');
     if (content === '!site') return message.reply('🌐 **CraftRiva Web Sitesi:** <https://craftriva.com/>');
-    if (content === '!sürüm') return message.reply('📌 **CraftRiva Sunucu Sürümü:** `1.19.3-26.2`');
+    if (content === '!sürüm') return message.reply('📌 **CraftRiva Sunucu Sürümü:** `1.19.3-2.26.3`');
 
     if (content === '!kapat') {
         const destekKategorileri = ['ceza-itiraz-', 'hile-bildirim-', 'genel-destek-', 'odeme-sorunlari-', 'yetkili-sikayet-', 'bug-bildirimi-', 'klan-destegi-', 'medya-', 'baglanti-sorunlari-'];
@@ -675,7 +675,7 @@ client.on('interactionCreate', async (interaction) => {
                     permissionOverwrites: [
                         { id: interaction.guild.id, deny: [PermissionFlagsBits.ViewChannel] },
                         { id: interaction.user.id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.AttachFiles, PermissionFlagsBits.EmbedLinks] },
-                        { id: '1531645132238225590', allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.AttachFiles, PermissionFlagsBits.EmbedLinks, PermissionFlagsBits.ReadMessageHistory] }
+                        { id: '1560060181608538133', allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.AttachFiles, PermissionFlagsBits.EmbedLinks, PermissionFlagsBits.ReadMessageHistory] }
                     ]
                 });
 
