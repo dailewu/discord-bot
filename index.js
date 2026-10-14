@@ -38,8 +38,8 @@ app.listen(PORT, '0.0.0.0', () => {
 // ==========================================
 // --- AYARLAR ---
 // ==========================================
-const ANI_FOTOGRAFLAR_KANAL_ID = '1531645133177618641'; 
-const INVITE_KANAL_ID = '1534343282996543639'; 
+const ANI_FOTOGRAFLAR_KANAL_ID = '1560060260767629352'; 
+const INVITE_KANAL_ID = '1560060284872294521'; 
 const MAX_SAME_MESSAGES = 4;
 
 // ==========================================
@@ -170,7 +170,7 @@ client.once('clientReady', async () => {
 // ==========================================
 client.on('guildMemberAdd', async (member) => {
     try {
-        const role = member.guild.roles.cache.get('1531645132229840982');
+        const role = member.guild.roles.cache.get('1427054546282348604');
         if (role) await member.roles.add(role);
     } catch (err) {
         console.error('Otomatik rol verilemedi:', err.message);
