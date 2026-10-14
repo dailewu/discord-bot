@@ -442,8 +442,7 @@ client.on('messageCreate', async (message) => {
     '📌 **Kurallar & Bilgilendirme:**\n' +
     '• Gereksiz veya troll amaçlı talep açmak yasaktır.\n' +
     '• Lütfen talebinizi oluşturduktan sonra sorununuzu detaylıca yazıp yetkililerin dönüş bekleyin.\n\n' +
-    '**Yardım almak istediğiniz kategoriye aşağıdaki butonlardan tıklayın:**'
-  ')
+    '**Yardım almak istediğiniz kategoriye aşağıdaki butonlardan tıklayın:**')
             .setColor('#38B6FF')
             .setFooter({ text: 'CraftRiva Destek Sistemi', iconURL: message.guild.iconURL() });
 
