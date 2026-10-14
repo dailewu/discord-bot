@@ -438,7 +438,13 @@ client.on('messageCreate', async (message) => {
 
         const embed = new EmbedBuilder()
             .setTitle('🛡️ CraftRiva Destek & İletişim Merkezi')
-            .setDescription('Sunucumuzda yaşadığınız sorunlar veya talepleriniz için aşağıdaki butonlara tıklayarak **Destek Talebi** oluşturabilirsiniz.')
+            .setDescription('
+    'Sunucumuzda yaşadığınız sorunlar veya talepleriniz için aşağıdaki butonlara tıklayarak **Destek Talebi** oluşturabilirsiniz.\n\n' +
+    '📌 **Kurallar & Bilgilendirme:**\n' +
+    '• Gereksiz veya troll amaçlı talep açmak yasaktır.\n' +
+    '• Lütfen talebinizi oluşturduktan sonra sorununuzu detaylıca yazıp yetkililerin dönüş bekleyin.\n\n' +
+    '**Yardım almak istediğiniz kategoriye aşağıdaki butonlardan tıklayın:**'
+  ')
             .setColor('#38B6FF')
             .setFooter({ text: 'CraftRiva Destek Sistemi', iconURL: message.guild.iconURL() });
 
