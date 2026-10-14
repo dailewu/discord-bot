@@ -438,8 +438,7 @@ client.on('messageCreate', async (message) => {
 
         const embed = new EmbedBuilder()
             .setTitle('🛡️ CraftRiva Destek & İletişim Merkezi')
-            .setDescription('
-    'Sunucumuzda yaşadığınız sorunlar veya talepleriniz için aşağıdaki butonlara tıklayarak **Destek Talebi** oluşturabilirsiniz.\n\n' +
+            .setDescription('Sunucumuzda yaşadığınız sorunlar veya talepleriniz için aşağıdaki butonlara tıklayarak **Destek Talebi** oluşturabilirsiniz.\n\n' +
     '📌 **Kurallar & Bilgilendirme:**\n' +
     '• Gereksiz veya troll amaçlı talep açmak yasaktır.\n' +
     '• Lütfen talebinizi oluşturduktan sonra sorununuzu detaylıca yazıp yetkililerin dönüş bekleyin.\n\n' +
