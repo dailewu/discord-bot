@@ -156,7 +156,7 @@ client.once('clientReady', async () => {
     console.log(`🤖 ${client.user.tag} olarak giriş yapıldı ve aktif!`);
 
 try {
-        const kanal = client.channels.cache.get('BURAYA_KANAL_ID_YAZ');
+        const kanal = client.channels.cache.get('1560060239854702602');
         if (kanal) {
             const embed = new EmbedBuilder()
                 .setTitle('🔗 Hesap Ekleştirme')
