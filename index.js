@@ -161,12 +161,12 @@ try {
             const embed = new EmbedBuilder()
                 .setTitle('🔗 Hesap Eşleştirme')
                 .setDescription(
-                    'Minecraft hesabınızı Discord ile eşleştirmek için aşağıdaki butona tıklayın!\n\n' +
+                    'Minecraft hesabınızı Discord ile eşleştirmek için aşağıdaki adımları yap!\n\n' +
                     '📝 **Nasıl Eşleştirilir?**\n' +
                     '1️⃣ Aşağıdaki **Hesap Ekle** butonuna bas.\n' +
                     '2️⃣ Sol taraftaki seçeneklerden **Discord Hesabını Bağla**\'ya tıkla ve hesabını bağla.'
                 )
-                .setFooter({ text: 'Craftriva • Hesap Ekleştirme Sistemi' })
+                .setFooter({ text: 'Craftriva • Hesap Eşleştirme Sistemi' })
                 .setColor(0x5865F2);
 
             const row = new ActionRowBuilder()
