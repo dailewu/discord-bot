@@ -199,7 +199,7 @@ try {
 // ==========================================
 client.on('guildMemberAdd', async (member) => {
     try {
-        const role = member.guild.roles.cache.get('1427054546282348604');
+        const role = member.guild.roles.cache.get('1560060284872294521');
         if (role) await member.roles.add(role);
     } catch (err) {
         console.error('Otomatik rol verilemedi:', err.message);
@@ -226,7 +226,7 @@ client.on('guildMemberAdd', async (member) => {
 
         invitesCache.set(member.guild.id, new Map(newInvites.map((inv) => [inv.code, inv.uses])));
 
-        const inviteChannel = member.guild.channels.cache.get(1560060284872294521);
+        const inviteChannel = member.guild.channels.cache.get('1560060284872294521');
         if (inviteChannel) {
             const embed = new EmbedBuilder()
                 .setTitle('📥 Yeni Üye Katıldı!')
