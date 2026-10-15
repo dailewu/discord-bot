@@ -610,10 +610,11 @@ client.on('interactionCreate', async (interaction) => {
                 const ticketChannel = await interaction.guild.channels.create({
                     name: channelName,
                     type: 0,
+                    position: 0,
                     permissionOverwrites: [
                         { id: interaction.guild.id, deny: [PermissionFlagsBits.ViewChannel] },
                         { id: interaction.user.id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.AttachFiles, PermissionFlagsBits.EmbedLinks] },
-                        { id: '1531645132238225590', allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.AttachFiles, PermissionFlagsBits.EmbedLinks, PermissionFlagsBits.ReadMessageHistory] }
+                        { id: '1560060181608538133', allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.AttachFiles, PermissionFlagsBits.EmbedLinks, PermissionFlagsBits.ReadMessageHistory] }
                     ]
                 });
 
@@ -672,6 +673,7 @@ client.on('interactionCreate', async (interaction) => {
                 const ticketChannel = await interaction.guild.channels.create({
                     name: channelName,
                     type: 0,
+                    position: 0,
                     permissionOverwrites: [
                         { id: interaction.guild.id, deny: [PermissionFlagsBits.ViewChannel] },
                         { id: interaction.user.id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.AttachFiles, PermissionFlagsBits.EmbedLinks] },
@@ -681,7 +683,6 @@ client.on('interactionCreate', async (interaction) => {
 
                 ticketOwners.set(ticketChannel.id, interaction.user.id);
 
-                // Modal embed metni güncellendi:
                 const embed = new EmbedBuilder()
                     .setTitle(`🎫 ${categoryName}`)
                     .setDescription(`Merhaba ${interaction.user}, destek talebiniz başarıyla oluşturuldu!\n\n📌 **Kategori:** ${categoryName}\n**${isHile ? 'Bildirilen Oyuncu' : 'Şikayet Edilen Yetkili'}:** ${field1}\n${field2 ? `**Kanıt:** ${field2}\n` : ''}**Açıklama:** ${aciklama}\n\nSorununuzu detaylı şekilde açıklayınız.`)
