@@ -173,7 +173,7 @@ try {
                 .addComponents(
                     new ButtonBuilder()
                         .setLabel('Hesap Ekle')
-                        .setStyle(ButtonStyle.Primary)
+                        .setStyle(ButtonStyle.Link)
                         .setURL('https://craftriva.com/profile/')
                         .setEmoji('🔗')
                 );
