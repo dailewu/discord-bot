@@ -159,7 +159,7 @@ try {
         const kanal = client.channels.cache.get('1560060239854702602');
         if (kanal) {
             const embed = new EmbedBuilder()
-                .setTitle('🔗 Hesap Ekleştirme')
+                .setTitle('🔗 Hesap Eşleştirme')
                 .setDescription(
                     'Minecraft hesabınızı Discord ile eşleştirmek için aşağıdaki butona tıklayın!\n\n' +
                     '📝 **Nasıl Eşleştirilir?**\n' +
@@ -173,7 +173,7 @@ try {
                 .addComponents(
                     new ButtonBuilder()
                         .setLabel('Hesap Ekle')
-                        .setStyle(ButtonStyle.Link)
+                        .setStyle(ButtonStyle.Primary)
                         .setURL('https://craftriva.com/profile/')
                         .setEmoji('🔗')
                 );
