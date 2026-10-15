@@ -154,7 +154,36 @@ async function rerollGiveaway(messageId, contextMessage) {
 // ==========================================
 client.once('clientReady', async () => {
     console.log(`🤖 ${client.user.tag} olarak giriş yapıldı ve aktif!`);
-    
+
+try {
+        const kanal = client.channels.cache.get('BURAYA_KANAL_ID_YAZ');
+        if (kanal) {
+            const embed = new EmbedBuilder()
+                .setTitle('🔗 Hesap Ekleştirme')
+                .setDescription(
+                    'Minecraft hesabınızı Discord ile eşleştirmek için aşağıdaki butona tıklayın!\n\n' +
+                    '📝 **Nasıl Eşleştirilir?**\n' +
+                    '1️⃣ Aşağıdaki **Hesap Ekle** butonuna bas.\n' +
+                    '2️⃣ Sol taraftaki seçeneklerden **Discord Hesabını Bağla**\'ya tıkla ve hesabını bağla.'
+                )
+                .setFooter({ text: 'Craftriva • Hesap Ekleştirme Sistemi' })
+                .setColor(0x5865F2);
+
+            const row = new ActionRowBuilder()
+                .addComponents(
+                    new ButtonBuilder()
+                        .setLabel('Hesap Ekle')
+                        .setStyle(ButtonStyle.Link)
+                        .setURL('https://craftriva.com/profile/')
+                        .setEmoji('🔗')
+                );
+
+            await kanal.send({ embeds: [embed], components: [row] });
+            console.log('Eşleştirme mesajı başarıyla gönderildi!');
+        }
+    } catch (err) {
+        console.error('Eşleştirme mesajı atılırken hata oluştu:', err);
+    }    
     client.guilds.cache.forEach(async (guild) => {
         try {
             const firstInvites = await guild.invites.fetch();
