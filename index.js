@@ -197,7 +197,7 @@ client.on('guildMemberAdd', async (member) => {
 
         invitesCache.set(member.guild.id, new Map(newInvites.map((inv) => [inv.code, inv.uses])));
 
-        const inviteChannel = member.guild.channels.cache.get(INVITE_KANAL_ID);
+        const inviteChannel = member.guild.channels.cache.get(1560060284872294521);
         if (inviteChannel) {
             const embed = new EmbedBuilder()
                 .setTitle('📥 Yeni Üye Katıldı!')
@@ -223,7 +223,7 @@ client.on('guildMemberRemove', async (member) => {
             invitesCache.set(member.guild.id, new Map(newInvites.map((inv) => [inv.code, inv.uses])));
         }
 
-        const inviteChannel = member.guild.channels.cache.get(INVITE_KANAL_ID);
+        const inviteChannel = member.guild.channels.cache.get(1560060284872294521);
         if (!inviteChannel) return;
 
         const embed = new EmbedBuilder()
