@@ -155,35 +155,7 @@ async function rerollGiveaway(messageId, contextMessage) {
 client.once('clientReady', async () => {
     console.log(`🤖 ${client.user.tag} olarak giriş yapıldı ve aktif!`);
 
-try {
-    const kanal = client.channels.cache.get('1560060239854702602');
-    if (kanal) {
-        const embed = new EmbedBuilder()
-            .setTitle('🔗 Hesap Eşleştirme')
-            .setDescription(
-                'Minecraft hesabınızı Discord ile eşleştirmek için aşağıdaki adımları yap!\n\n' +
-                '📌 **Nasıl Eşleştirilir?**\n' +
-                '1️⃣ Aşağıdaki **Hesap Ekle** butonuna bas.\n' +
-                '2️⃣ Sol taraftaki seçeneklerden **Discord Hesabını Bağla**\'ya tıkla ve hesabını bağla.'
-            )
-            .setFooter({ text: 'Craftriva • Hesap Eşleştirme Sistemi' })
-            .setColor(0x5865F2);
 
-        const row = new ActionRowBuilder()
-            .addComponents(
-                new ButtonBuilder()
-                    .setLabel('Hesap Ekle')
-                    .setStyle(ButtonStyle.Link)
-                    .setURL('https://craftriva.com/profile/')
-                    .setEmoji('🔗')
-            );
-
-        await kanal.send({ embeds: [embed], components: [row] });
-        console.log('Eşleştirme mesajı başarıyla gönderildi!');
-    }
-} catch (err) {
-    console.error('Eşleştirme mesajı atılırken hata oluştu:', err);
-}
     client.guilds.cache.forEach(async (guild) => {
         try {
             const firstInvites = await guild.invites.fetch();
@@ -728,6 +700,40 @@ client.on('interactionCreate', async (interaction) => {
     }
 });
 
+
+// --- HESAP EŞLEŞTİRME KOMUTU (!eşle-kur) ---
+client.on('messageCreate', async (message) => {
+    if (message.author.bot) return;
+
+    if (message.content === '!eşle-kur') {
+        if (!message.member.permissions.has('Administrator')) {
+            return message.reply('❌ Bu komutu kullanmak için yönetici yetkisine sahip olmalısınız!');
+        }
+
+        const embed = new EmbedBuilder()
+            .setTitle('🔗 Hesap Eşleştirme')
+            .setDescription(
+                'Minecraft hesabınızı Discord ile eşleştirmek için aşağıdaki adımları yap!\n\n' +
+                '📌 **Nasıl Eşleştirilir?**\n' +
+                '1️⃣ Aşağıdaki **Hesap Ekle** butonuna bas.\n' +
+                '2️⃣ Sol taraftaki seçeneklerden **Discord Hesabını Bağla**\'ya tıkla ve hesabını bağla.'
+            )
+            .setFooter({ text: 'Craftriva • Hesap Eşleştirme Sistemi' })
+            .setColor(0x5865F2);
+
+        const row = new ActionRowBuilder()
+            .addComponents(
+                new ButtonBuilder()
+                    .setLabel('Hesap Ekle')
+                    .setStyle(ButtonStyle.Link)
+                    .setURL('https://craftriva.com/profile/')
+                    .setEmoji('🔗')
+            );
+
+        await message.channel.send({ embeds: [embed], components: [row] });
+        await message.reply('✅ Hesap eşleştirme mesajı bu kanala kuruldu!');
+    }
+});
 // ==========================================
 // --- BOT GİRİŞİ ---
 // ==========================================
