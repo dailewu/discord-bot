@@ -171,7 +171,7 @@ client.once('clientReady', async () => {
 // ==========================================
 client.on('guildMemberAdd', async (member) => {
     try {
-        const role = member.guild.roles.cache.get('1560060284872294521');
+        const role = member.guild.roles.cache.get('1427054546282348604');
         if (role) await member.roles.add(role);
     } catch (err) {
         console.error('Otomatik rol verilemedi:', err.message);
