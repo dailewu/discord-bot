@@ -233,7 +233,7 @@ client.on('guildMemberRemove', async (member) => {
             .setColor('#E74C3C')
             .setTimestamp();
 
-        await inviteChannel.send({ embeds: [embed] });
+        await inviteChannel.send({ embeds: [1560060284872294521] });
     } catch (err) {
         console.error('Üye ayrılma logu gönderilemedi:', err.message);
     }
