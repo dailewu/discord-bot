@@ -224,7 +224,7 @@ client.on('guildMemberRemove', async (member) => {
             invitesCache.set(member.guild.id, new Map(newInvites.map((inv) => [inv.code, inv.uses])));
         }
 
-        const inviteChannel = member.guild.channels.cache.get(1560060284872294521);
+        const inviteChannel = member.guild.channels.cache.get(1427054546282348604);
         if (!inviteChannel) return;
 
         const embed = new EmbedBuilder()
@@ -724,7 +724,7 @@ client.on('messageCreate', async (message) => {
         const row = new ActionRowBuilder()
             .addComponents(
                 new ButtonBuilder()
-                    .setLabel('Hesap Ekle')
+                    .setLabel('Hesap Eşle')
                     .setStyle(ButtonStyle.Link)
                     .setURL('https://craftriva.com/profile/')
                     .setEmoji('🔗')
