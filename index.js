@@ -224,7 +224,8 @@ client.on('guildMemberRemove', async (member) => {
             invitesCache.set(member.guild.id, new Map(newInvites.map((inv) => [inv.code, inv.uses])));
         }
 
-        const inviteChannel = member.guild.channels.cache.get(1427054546282348604);
+        // Kanal ID'si tırnak içinde (string) olarak alındı
+        const inviteChannel = member.guild.channels.cache.get('1427054546282348604');
         if (!inviteChannel) return;
 
         const embed = new EmbedBuilder()
@@ -233,7 +234,8 @@ client.on('guildMemberRemove', async (member) => {
             .setColor('#E74C3C')
             .setTimestamp();
 
-        await inviteChannel.send({ embeds: [1560060284872294521] });
+        // Gönderilen kısım [embed] olarak güncellendi
+        await inviteChannel.send({ embeds: [embed] });
     } catch (err) {
         console.error('Üye ayrılma logu gönderilemedi:', err.message);
     }
