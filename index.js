@@ -219,26 +219,32 @@ client.on('guildMemberAdd', async (member) => {
 // ==========================================
 client.on('guildMemberRemove', async (member) => {
     try {
-        const channelId = '1560060284872294521';
+        const channelId = '1560060284872294521'; // Giriş-çıkış log kanalı
+        const oyuncuRoleId = '1427054546282348604'; // Oyuncu rolünün ID'si
+
+        // Eğer çıkan kişinin "Oyuncu" rolü yoksa hiçbir şey yapma, direkt çık
+        if (!member.roles.cache.has(oyuncuRoleId)) return;
+
+        // Kanalı önbellekten bul veya sunucudan garanti şekilde çek
+        const inviteChannel = member.guild.channels.cache.get(channelId) || await member.guild.channels.fetch(channelId).catch(() => null);
         
-        // Kanalı önbellekten değil, doğrudan Discord API'sinden çekiyoruz
-        const channel = await member.guild.channels.fetch(channelId).catch(() => null);
-        
-        if (!channel) {
-            console.log("HATA: Belirtilen kanal bulunamadı veya bota yetki yok!");
+        // Kanal bulunamadıysa işlemi sonlandır
+        if (!inviteChannel) {
+            console.error(`Ayrılma log kanalı bulunamadı! ID: ${channelId}`);
             return;
         }
-
+        
         const embed = new EmbedBuilder()
-            .setColor('#FF0000')
+            .setTitle(':outbox_tray: Oyuncu Ayrıldı')
             .setDescription(`**${member.user.tag}** sunucudan ayrıldı.`)
+            .setColor('#E74C3C')
             .setTimestamp();
 
-        await channel.send({ embeds: [embed] });
-        console.log(`BAŞARILI: ${member.user.tag} için çıkış mesajı gönderildi.`);
-        
+        await inviteChannel.send({ embeds: [embed] });
+        console.log(`[BAŞARILI] ${member.user.tag} (Oyuncu) için çıkış mesajı atıldı.`);
+
     } catch (error) {
-        console.error("Çıkış mesajı gönderilirken hata oluştu:", error);
+        console.error('Çıkış mesajı gönderilirken hata oluştu:', error);
     }
 });
 
