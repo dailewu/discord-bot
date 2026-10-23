@@ -215,6 +215,23 @@ client.on('guildMemberAdd', async (member) => {
 });
 
 // ==========================================
+// --- BOT AÇILIŞI VE TÜM ÜYELERİ HAFIZAYA ÇEKME ---
+// ==========================================
+client.once('ready', async () => {
+    console.log(`${client.user.tag} başarıyla giriş yaptı!`);
+
+    // Eskiden beri sunucuda olan üyelerin rollerinin algılanabilmesi için
+    for (const guild of client.guilds.cache.values()) {
+        try {
+            await guild.members.fetch();
+            console.log(`[ÖNBELLEK] ${guild.name} sunucusundaki tüm üyeler hafızaya alındı.`);
+        } catch (err) {
+            console.error(`[HATA] Üyeler önbelleğe alınamadı:`, err.message);
+        }
+    }
+});
+
+// ==========================================
 // --- ÜYE AYRILDIĞINDA LOG (OYUNCU) ---
 // ==========================================
 client.on('guildMemberRemove', async (member) => {
