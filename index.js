@@ -218,26 +218,27 @@ client.on('guildMemberAdd', async (member) => {
 // --- ÜYE AYRILDIĞINDA LOG ---
 // ==========================================
 client.on('guildMemberRemove', async (member) => {
-    console.log(`[TEST LOG] ${member.user.tag} sunucudan ayrıldı!`);
-
-    const channelId = '1560060284872294521';
-    const channel = member.guild.channels.cache.get(channelId);
-
-    if (!channel) {
-        console.log(`[HATA] Bot ${channelId} ID'li kanalı bulamadı!`);
-        return;
-    }
-
     try {
+        const channelId = '1560060284872294521';
+        
+        // Kanalı önbellekten değil, doğrudan Discord API'sinden çekiyoruz
+        const channel = await member.guild.channels.fetch(channelId).catch(() => null);
+        
+        if (!channel) {
+            console.log("HATA: Belirtilen kanal bulunamadı veya bota yetki yok!");
+            return;
+        }
+
         const embed = new EmbedBuilder()
             .setColor('#FF0000')
             .setDescription(`**${member.user.tag}** sunucudan ayrıldı.`)
             .setTimestamp();
 
         await channel.send({ embeds: [embed] });
-        console.log(`[BAŞARILI] Mesaj gönderildi!`);
-    } catch (err) {
-        console.log(`[HATA] Mesaj atılırken bir hata oluştu:`, err);
+        console.log(`BAŞARILI: ${member.user.tag} için çıkış mesajı gönderildi.`);
+        
+    } catch (error) {
+        console.error("Çıkış mesajı gönderilirken hata oluştu:", error);
     }
 });
 
