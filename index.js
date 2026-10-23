@@ -217,7 +217,6 @@ client.on('guildMemberAdd', async (member) => {
 // ==========================================
 // --- ÜYE AYRILDIĞINDA LOG ---
 // ==========================================
-const { EmbedBuilder } = require('discord.js');
 
 client.on('guildMemberRemove', async (member) => {
     const channelId = '1560060284872294521';
