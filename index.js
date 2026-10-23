@@ -217,22 +217,13 @@ client.on('guildMemberAdd', async (member) => {
 // ==========================================
 // --- ÜYE AYRILDIĞINDA LOG ---
 // ==========================================
-const { Client, GatewayIntentBits, Events, EmbedBuilder } = require('discord.js');
-
-const client = new Client({
-    intents: [
-        GatewayIntentBits.Guilds,
-        GatewayIntentBits.GuildMembers // Üye ayrılma/katılma olayları için şarttır
-    ]
-});
-
 client.on(Events.GuildMemberRemove, async (member) => {
     const channelId = '1560060284872294521';
     const channel = member.guild.channels.cache.get(channelId);
     if (!channel) return;
 
     const embed = new EmbedBuilder()
-        .setColor('#FF0000') // Kırmızı renk
+        .setColor('#FF0000')
         .setDescription(`**${member.user.tag}** sunucudan ayrıldı.`)
         .setTimestamp();
 
