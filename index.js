@@ -220,7 +220,7 @@ client.on('guildMemberAdd', async (member) => {
 client.on(Events.GuildMemberRemove, async (member) => {
     try {
         // Yeni kanal ID'si
-        const channelId = '1560060284872294521';
+        const channelId = ('1560060284872294521');
 
         // Kanalı önbellekten bul veya sunucudan garanti şekilde çek
         const inviteChannel = member.guild.channels.cache.get(channelId) 
