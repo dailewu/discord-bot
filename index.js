@@ -217,29 +217,38 @@ client.on('guildMemberAdd', async (member) => {
 // ==========================================
 // --- ÜYE AYRILDIĞINDA LOG ---
 // ==========================================
-client.on('guildMemberRemove', async (member) => {
+client.on(Events.GuildMemberRemove, async (member) => {
     try {
+        // Yeni kanal ID'si
+        const channelId = '1560060284872294521';
+
         // Kanalı önbellekten bul veya sunucudan garanti şekilde çek
-        const channelId = '1427054546282348604';
-        const inviteChannel = member.guild.channels.cache.get(channelId) || await member.guild.channels.fetch(channelId).catch(() => null);
-        
+        const inviteChannel = member.guild.channels.cache.get(channelId) 
+             await member.guild.channels.fetch(channelId).catch(() => null);
+
         // Kanal bulunamadıysa işlemi sonlandır
         if (!inviteChannel) {
-            console.error(`Ayrılma log kanalı bulunamadı! ID: ${channelId}`);
+            console.error(Ayrılma log kanalı bulunamadı! ID: ${channelId});
             return;
         }
+
+        // Bot yeniden başlatılmadan önce sunucuda olan üyeler (Partial) için güvenli kontrol
+        if (member.partial) {
+            await member.fetch().catch(() => null);
+        }
+        const userTag = member.user ? (member.user.tag  member.user.username) : 'Bilinmeyen Üye';
 
         // Birebir aynı Embed tasarımı
         const embed = new EmbedBuilder()
             .setTitle('📤 Üye Ayrıldı')
-            .setDescription(`**${member.user.tag}** sunucudan ayrıldı.`)
+            .setDescription(**${userTag}** sunucudan ayrıldı.)
             .setColor('#E74C3C')
             .setTimestamp();
 
         // Mesajı gönder
         await inviteChannel.send({ embeds: [embed] });
     } catch (err) {
-        console.error('Üye ayrılma logu gönderilemedi:', err.message);
+        console.error('Üye ayrılma logu gönderilemedi:', err);
     }
 });
 
