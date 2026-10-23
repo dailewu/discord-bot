@@ -217,18 +217,28 @@ client.on('guildMemberAdd', async (member) => {
 // ==========================================
 // --- ÜYE AYRILDIĞINDA LOG ---
 // ==========================================
-
 client.on('guildMemberRemove', async (member) => {
+    console.log(`[TEST LOG] ${member.user.tag} sunucudan ayrıldı!`);
+
     const channelId = '1560060284872294521';
     const channel = member.guild.channels.cache.get(channelId);
-    if (!channel) return;
 
-    const embed = new EmbedBuilder()
-        .setColor('#FF0000')
-        .setDescription(`**${member.user.tag}** sunucudan ayrıldı.`)
-        .setTimestamp();
+    if (!channel) {
+        console.log(`[HATA] Bot ${channelId} ID'li kanalı bulamadı!`);
+        return;
+    }
 
-    await channel.send({ embeds: [embed] });
+    try {
+        const embed = new EmbedBuilder()
+            .setColor('#FF0000')
+            .setDescription(`**${member.user.tag}** sunucudan ayrıldı.`)
+            .setTimestamp();
+
+        await channel.send({ embeds: [embed] });
+        console.log(`[BAŞARILI] Mesaj gönderildi!`);
+    } catch (err) {
+        console.log(`[HATA] Mesaj atılırken bir hata oluştu:`, err);
+    }
 });
 
 // ==========================================
