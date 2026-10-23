@@ -215,36 +215,37 @@ client.on('guildMemberAdd', async (member) => {
 });
 
 // ==========================================
-// --- ÜYE AYRILDIĞINDA LOG ---
+// --- ÜYE AYRILDIĞINDA LOG (OYUNCU) ---
 // ==========================================
 client.on('guildMemberRemove', async (member) => {
     try {
-        const channelId = '1560060284872294521'; // Giriş-çıkış log kanalı
         const oyuncuRoleId = '1427054546282348604'; // Oyuncu rolünün ID'si
 
         // Eğer çıkan kişinin "Oyuncu" rolü yoksa hiçbir şey yapma, direkt çık
         if (!member.roles.cache.has(oyuncuRoleId)) return;
 
         // Kanalı önbellekten bul veya sunucudan garanti şekilde çek
+        const channelId = '1560060284872294521';
         const inviteChannel = member.guild.channels.cache.get(channelId) || await member.guild.channels.fetch(channelId).catch(() => null);
-        
-        // Kanal bulunamadıysa işlemi sonlandır
+
+        // Kanal bulunamadıysa konsola hata bas
         if (!inviteChannel) {
-            console.error(`Ayrılma log kanalı bulunamadı! ID: ${channelId}`);
+            console.error('Ayrılma log kanalı bulunamadı!');
             return;
         }
-        
+
         const embed = new EmbedBuilder()
-            .setTitle(':outbox_tray: Oyuncu Ayrıldı')
+            .setTitle('📤 Oyuncu Ayrıldı!')
             .setDescription(`**${member.user.tag}** sunucudan ayrıldı.`)
-            .setColor('#E74C3C')
+            .setColor('#E74C3C') // Kırmızı renk
+            .setThumbnail(member.user.displayAvatarURL({ dynamic: true }))
             .setTimestamp();
 
         await inviteChannel.send({ embeds: [embed] });
-        console.log(`[BAŞARILI] ${member.user.tag} (Oyuncu) için çıkış mesajı atıldı.`);
+        console.log(`[BAŞARILI] ${member.user.tag} (Oyuncu) için çıkış mesajı gönderildi.`);
 
-    } catch (error) {
-        console.error('Çıkış mesajı gönderilirken hata oluştu:', error);
+    } catch (err) {
+        console.error('Çıkış mesajı gönderilirken hata oluştu:', err.message);
     }
 });
 
